@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Cutter App</title>
+    <link rel="stylesheet" href="path/to/timepicker.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        label {
+            display: inline-block;
+            margin: 10px 0;
+            color: #555;
+            width: 100px;
+        }
+
+        input[type="text"] {
+            width: 120px;
+            padding: 8px;
+            margin: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        label[for="audioFile"] {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 16px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        #downloadLink {
+            display: none;
+            margin-top: 10px;
+        }
+
+        #downloadButton {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 10px; 
+            transition: background-color 0.3s ease;
+        }
+
+        #downloadButton:hover {
+            background-color: #2980b9;
+        }
+        
+        #endPointContainer, #startPointContainer {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Cutter App</h1>
+    
+    <label for="audioFile">Select Audio File</label>
+    <input type="file" accept="audio/*" id="audioFile" />
+
+    <br>
+
+    <audio controls id="audioPlayer"></audio>
+
+    <br>
+
+    <div id="startPointContainer"> 
+        <label for="startPoint">Start Point:</label>
+        <input type="text" id="startPoint" class="timepicker" value="00:00" />
+    </div>
+
+    <div id="endPointContainer"> 
+        <label for="endPoint">End Point:</label>
+        <input type="text" id="endPoint" class="timepicker" value="00:00" />
+    </div>
+
+    <br>
+
+    <button id="cutAudioButton" onclick="cutAudio()">Cut the Audio</button>
+
+    <div id="downloadLink">
+        <a id="downloadButton" download="cut_audio.mp3">Download The Audio</a>
+    </div>
+
+    <script src="path/to/timepicker.js"></script>
+    <script>
+        document.getElementById('audioFile').addEventListener('change', function () {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const audioFile = this.files[0];
+
+            if (audioFile) {
+                audioPlayer.src = URL.createObjectURL(audioFile);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const timepickers = document.querySelectorAll('.timepicker');
+            timepickers.forEach(function (el) {
+                new TimePicker(el, {});
+            });
+        });
+
+        async function cutAudio() {
+            const cutAudioButton = document.getElementById('cutAudioButton');
+            cutAudioButton.textContent = 'Cutting the Audio';
+
+            const startInput = document.getElementById('startPoint');
+            const endInput = document.getElementById('endPoint');
+
+            const startTime = timeStringToSeconds(startInput.value);
+            const endTime = timeStringToSeconds(endInput.value);
+
+            const audioFile = document.getElementById('audioFile').files[0];
+            if (!audioFile) return;
+
+            try {
+                const audioBuffer = await decodeAudioFile(audioFile);
+                const cutBuffer = cutAudioBuffer(audioBuffer, startTime, endTime);
+                const downloadLink = document.getElementById('downloadLink');
+                const downloadButton = document.getElementById('downloadButton');
+
+                const cutBlob = bufferToWave(cutBuffer.buffer);
+                const cutBlobUrl = URL.createObjectURL(cutBlob);
+                downloadButton.href = cutBlobUrl;
+
+                downloadLink.style.display = 'block';
+
+                // Reset button text after completion
+                cutAudioButton.textContent = 'Cut the Audio';
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function decodeAudioFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const buffer = await audioContext.decodeAudioData(event.target.result);
+                        resolve(buffer);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function cutAudioBuffer(buffer, start, end) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createBufferSource();
+            const newBuffer = audioContext.createBuffer(buffer.numberOfChannels, (end - start) * buffer.sampleRate, buffer.sampleRate);
+
+            for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                const newChannelData = newBuffer.getChannelData(channel);
+                const originalChannelData = buffer.getChannelData(channel).subarray(start * buffer.sampleRate, end * buffer.sampleRate);
+                newChannelData.set(originalChannelData);
+            }
+
+            source.buffer = newBuffer;
+            return source;
+        }
+
+        function bufferToWave(abuffer) {
+            var numOfChan = abuffer.numberOfChannels;
+            var length = abuffer.length * numOfChan * 2 + 44;
+            var buffer = new ArrayBuffer(length);
+            var view = new DataView(buffer);
+            var channels = [];
+            var sample;
+            var offset = 0;
+            var pos = 0;
+
+            // write WAVE header
+            setUint32(0x46464952);                         // "RIFF"
+            setUint32(length - 8);                         // file length - 8
+            setUint32(0x45564157);                         // "WAVE"
+
+            setUint32(0x20746d66);                         // "fmt " chunk
+            setUint32(16);                                 // length = 16
+            setUint16(1);                                  // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+            setUint16(numOfChan * 2);                      // block-align
+            setUint16(16);                                 // 16-bit (hardcoded in this demo)
+
+            setUint32(0x61746164);                         // "data" - chunk
+            setUint32(length - pos - 4);                   // chunk length
+
+            // write interleaved data
+            for (var i = 0; i < abuffer.numberOfChannels; i++) {
+                channels.push(abuffer.getChannelData(i));
+            }
+
+            while (pos < length) {
+                for (var i = 0; i < numOfChan; i++) {
+                    // interleave channels
+                    sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
+                    view.setInt16(pos, sample, true); // write 16-bit sample
+                    pos += 2;
+                }
+                offset++; // next source sample
+            }
+
+            // Helper functions
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function timeStringToSeconds(timeString) {
+            const parts = timeString.split(':');
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        }
+    </script>
+</body>
+</html>
