@@ -1,6 +1,6 @@
 # Audio Cutter App
 
-![Audio Cutter App](https://ibb.co/FqsmRKN.jpg)
+![Audio Cutter App](https://telegra.ph/file/aace04f341786ba77b2eb.jpg)
 
 ## Description
 
