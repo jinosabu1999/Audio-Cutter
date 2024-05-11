@@ -1,6 +1,6 @@
 # Audio Cutter App
 
-![Audio Cutter App](https://telegra.ph/file/fedcc5928a6b1e95b4ecc.jpg
+![Audio Cutter App](https://telegra.ph/file/fedcc5928a6b1e95b4ecc.jpg)
 
 ## Description
 
