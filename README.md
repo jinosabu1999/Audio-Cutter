@@ -27,7 +27,9 @@
 
 ## Technologies Used
 
- 🌐💻 HTML5 📚 | 🎨🖌️ CSS3 | 🎶🎵 JavaScript (Web Audio API)
+| 🌐💻 HTML5 📚 |
+| 🎨🖌️ CSS3 | 
+| 🎶🎵 JavaScript (Web Audio API) |
 
 ## License
 
