@@ -2,7 +2,7 @@
 
 ![Audio Cutter App](https://telegra.ph/file/fedcc5928a6b1e95b4ecc.jpg)
 
- 🎧📁 Introducing 🛠️ **AudioCropApp** 🛠️ - Your Ultimate 🎛️ Audio Editing Tool! 🎛️
+ 🎧📁 Introducing 🛠️ **Audio Cutter App** 🛠️ - Your Ultimate 🎛️ Audio Editing Tool! 🎛️
 
 👉 **How It Works:**
 1. 📁 **Upload Your Audio File:** Simply drag and drop or browse to select the audio file you want to crop.
@@ -13,10 +13,9 @@
 - 🎵 **Web Audio API Integration:** Utilizes the powerful Web Audio API for seamless and efficient audio cutting.
 - 📱 **Responsive Design:** Works flawlessly on both desktop and mobile devices.
 - 🔄 **Multiple File Formats Supported:** Accepts a wide range of audio file formats, including MP3, WAV, AAC, and more.
-- 📈 **Real-time Preview:** Listen to your selected audio segment in real-time before downloading.
 - 📝 **Easy to Use:** No prior audio editing experience required. Intuitive and user-friendly interface.
 
-🚀 **Get Started Now!** Dive into the world of precise audio editing with **AudioCropApp**. 🎵✨
+🚀 **Get Started Now!** Dive into the world of precise audio editing with **Audio Cutter App**. 🎵✨
 
 ## Features
 
