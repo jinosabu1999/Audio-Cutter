@@ -14,7 +14,7 @@ A simple web application that allows users to upload an audio file, select a sta
 
 ## Usage
 
-1. Clone the repository: `git clone https://github.com/your-username/audio-cutter-app.git`
+1. Clone the repository: `git clone https://github.com/jinosabu1999/audio-cutter-app.git`
 2. Open the `index.html` file in your browser
 3. Upload an audio file, set the start and end points, and click "Cut the Audio"
 4. Download the cropped audio file
