@@ -17,12 +17,6 @@
 
 🚀 **Get Started Now!** Dive into the world of precise audio editing with **Audio Cutter App**. 🎵✨
 
-## Features
-
-- Upload audio files in various formats (e.g., MP3, WAV)
-- Set start and end points using a time picker
-- Download the cropped audio file in MP3 format
-
 ## Usage
 
 1. Clone the repository: `git clone https://github.com/jinosabu1999/audio-cutter-app.git`
