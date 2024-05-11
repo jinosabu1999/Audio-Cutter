@@ -1,6 +1,6 @@
 # Audio Cutter App
 
-![Audio Cutter App](https://i.imgur.com/9JjJjJj.png)
+![Audio Cutter App](https://ibb.co/FqsmRKN)
 
 ## Description
 
