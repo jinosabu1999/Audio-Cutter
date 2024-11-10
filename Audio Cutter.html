@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audio Cutter</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     :root {
       --primary-color: #4ecca3;
@@ -12,6 +13,14 @@
       --secondary-bg: #16213e;
       --text-color: #e0e0e0;
       --accent-color: #0f3460;
+    }
+
+    .light-mode {
+      --primary-color: #3a9d7e;
+      --bg-color: #f0f0f0;
+      --secondary-bg: #ffffff;
+      --text-color: #333333;
+      --accent-color: #2980b9;
     }
 
     * {
@@ -29,6 +38,7 @@
       align-items: center;
       min-height: 100vh;
       padding: 20px;
+      transition: background-color 0.3s, color 0.3s;
     }
 
     .container {
@@ -52,7 +62,9 @@
     }
 
     .file-label {
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background-color: var(--accent-color);
       color: var(--text-color);
       padding: 12px 20px;
@@ -64,6 +76,10 @@
 
     .file-label:hover {
       background-color: #1a4a80;
+    }
+
+    .file-label i {
+      margin-right: 10px;
     }
 
     .time-container {
@@ -130,8 +146,9 @@
     }
 
     .btn {
-      display: block;
-      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       padding: 12px;
       border: none;
       border-radius: 10px;
@@ -146,6 +163,10 @@
 
     .btn:hover {
       background-color: #45b393;
+    }
+
+    .btn i {
+      margin-right: 8px;
     }
 
     #audioPlayer {
@@ -174,6 +195,67 @@
       margin-right: 10px;
     }
 
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 1.5rem;
+      cursor: pointer;
+      z-index: 1000;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background-color 0.3s ease;
+    }
+
+    .theme-toggle:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .action-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+
+    .action-buttons .btn {
+      flex: 1;
+      margin: 0 5px;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid var(--primary-color);
+      border-top: 5px solid var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     @media (max-width: 500px) {
       .container {
         padding: 20px;
@@ -182,13 +264,39 @@
       h1 {
         font-size: 1.5rem;
       }
+
+      .time-container {
+        flex-direction: column;
+      }
+
+      .time-input {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+
+      .action-buttons {
+        flex-wrap: wrap;
+      }
+
+      .action-buttons .btn {
+        flex: 1 0 calc(33.333% - 10px);
+        margin: 5px;
+        font-size: 0.9rem;
+        padding: 10px;
+      }
     }
   </style>
 </head>
 <body>
+  <button class="theme-toggle" aria-label="Toggle dark/light mode">
+    <i data-lucide="sun" class="theme-icon"></i>
+  </button>
   <div class="container">
     <h1>Audio Cutter</h1>
-    <label for="audioFile" class="file-label">Select Audio File</label>
+    <label for="audioFile" class="file-label">
+      <i data-lucide="upload"></i>
+      Select Audio File
+    </label>
     <input type="file" accept="audio/*" id="audioFile" class="file-input" />
 
     <audio controls id="audioPlayer"></audio>
@@ -223,8 +331,28 @@
       <label for="loopCheckbox">Loop selected portion</label>
     </div>
 
-    <button id="cutAudioButton" class="btn" onclick="cutAudio()">Cut the Audio</button>
-    <a id="downloadButton" class="btn" style="display: none;" download="cut_audio.mp3">Download Cut Audio</a>
+    <div class="action-buttons">
+      <button id="cutAudioButton" class="btn" onclick="cutAudio()">
+        <i data-lucide="scissors"></i>
+        Cut Audio
+      </button>
+      <button id="saveProject" class="btn">
+        <i data-lucide="save"></i>
+        Save Project
+      </button>
+      <button id="loadProject" class="btn">
+        <i data-lucide="folder-open"></i>
+        Load Project
+      </button>
+    </div>
+    <a id="downloadButton" class="btn" style="display: none;" download="cut_audio.wav">
+      <i data-lucide="download"></i>
+      Download Cut Audio
+    </a>
+  </div>
+
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
   </div>
 
   <script>
@@ -237,6 +365,9 @@
     const loopCheckbox = document.getElementById('loopCheckbox');
     const startPointInput = document.getElementById('startPoint');
     const endPointInput = document.getElementById('endPoint');
+    const saveProjectButton = document.getElementById('saveProject');
+    const loadProjectButton = document.getElementById('loadProject');
+    const loadingOverlay = document.getElementById('loadingOverlay');
 
     document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('audioFile').addEventListener('change', handleFileSelect);
@@ -246,11 +377,33 @@
       loopCheckbox.addEventListener('change', toggleLoop);
       startPointInput.addEventListener('change', updateLoopPoints);
       endPointInput.addEventListener('change', updateLoopPoints);
+      saveProjectButton.addEventListener('click', saveProject);
+      loadProjectButton.addEventListener('click', loadProject);
+
+      // Theme toggle
+      const themeToggle = document.querySelector('.theme-toggle');
+      const themeIcon = document.querySelector('.theme-icon');
+      themeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        if (document.body.classList.contains('light-mode')) {
+          themeIcon.setAttribute('data-lucide', 'moon');
+        } else {
+          themeIcon.setAttribute('data-lucide', 'sun');
+        }
+        lucide.createIcons();
+      });
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', handleKeyboardShortcuts);
+
+      // Initialize Lucide icons
+      lucide.createIcons();
     });
 
     function handleFileSelect(e) {
       const file = e.target.files[0];
       if (file) {
+        loadingOverlay.style.display = 'flex';
         const reader = new FileReader();
         reader.onload = function(e) {
           const arrayBuffer = e.target.result;
@@ -259,6 +412,7 @@
             audioBuffer = buffer;
             audioPlayer.src = URL.createObjectURL(file);
             document.getElementById('endPoint').value = formatTime(buffer.duration);
+            loadingOverlay.style.display = 'none';
           });
         };
         reader.readAsArrayBuffer(file);
@@ -329,7 +483,8 @@
         downloadButton.href = cutBlobUrl;
         downloadButton.style.display = 'block';
 
-        cutAudioButton.textContent = 'Cut the Audio';
+        cutAudioButton.innerHTML = '<i data-lucide="scissors"></i>Cut Audio';
+        lucide.createIcons();
       } catch (error) {
         console.error(error);
         cutAudioButton.textContent = 'Error occurred';
@@ -405,6 +560,67 @@
       }
 
       return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function saveProject() {
+      const project = {
+        startPoint: startPointInput.value,
+        endPoint: endPointInput.value,
+        volume: volumeSlider.value,
+        playbackSpeed: playbackSpeedSlider.value,
+        loop: loopCheckbox.checked
+      };
+
+      const blob = new Blob([JSON.stringify(project)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audio_project.json';
+      a.click();
+    }
+
+    function loadProject() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = readerEvent => {
+          const content = readerEvent.target.result;
+          const project = JSON.parse(content);
+          applyProjectState(project);
+        }
+        reader.readAsText(file);
+      }
+      input.click();
+    }
+
+    function applyProjectState(state) {
+      startPointInput.value = state.startPoint;
+      endPointInput.value = state.endPoint;
+      volumeSlider.value = state.volume;
+      playbackSpeedSlider.value = state.playbackSpeed;
+      loopCheckbox.checked = state.loop;
+
+      updateVolume.call(volumeSlider);
+      updatePlaybackSpeed.call(playbackSpeedSlider);
+      toggleLoop.call(loopCheckbox);
+    }
+
+    function handleKeyboardShortcuts(e) {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (audioPlayer.paused) {
+          audioPlayer.play();
+        } else {
+          audioPlayer.pause();
+        }
+      } else if (e.code === 'ArrowLeft') {
+        audioPlayer.currentTime -= 5;
+      } else if (e.code === 'ArrowRight') {
+        audioPlayer.currentTime += 5;
+      }
     }
   </script>
 </body>
