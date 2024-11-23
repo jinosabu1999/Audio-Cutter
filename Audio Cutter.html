@@ -1,627 +1,379 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audio Cutter</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    :root {
-      --primary-color: #4ecca3;
-      --bg-color: #1a1a2e;
-      --secondary-bg: #16213e;
-      --text-color: #e0e0e0;
-      --accent-color: #0f3460;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Cutter</title>
+    <style>
+        :root {
+            --primary: #ff4d4d;
+            --secondary: #4d4dff;
+            --background: #1a1a2e;
+            --text: #ffffff;
+        }
 
-    .light-mode {
-      --primary-color: #3a9d7e;
-      --bg-color: #f0f0f0;
-      --secondary-bg: #ffffff;
-      --text-color: #333333;
-      --accent-color: #2980b9;
-    }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+        .container {
+            background: linear-gradient(145deg, #2a2a3e, #1a1a2e);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
 
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-      transition: background-color 0.3s, color 0.3s;
-    }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
-    .container {
-      background-color: var(--secondary-bg);
-      border-radius: 20px;
-      padding: 30px;
-      width: 100%;
-      max-width: 500px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    }
+        .upload-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
 
-    h1 {
-      color: var(--primary-color);
-      font-size: 2rem;
-      margin-bottom: 20px;
-      text-align: center;
-    }
+        #fileInput {
+            display: none;
+        }
 
-    .file-input {
-      display: none;
-    }
+        .upload-btn {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            color: var(--text);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-    .file-label {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: var(--accent-color);
-      color: var(--text-color);
-      padding: 12px 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      text-align: center;
-      transition: background-color 0.3s ease;
-    }
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 77, 77, 0.4);
+        }
 
-    .file-label:hover {
-      background-color: #1a4a80;
-    }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
 
-    .file-label i {
-      margin-right: 10px;
-    }
+        .btn {
+            background: none;
+            border: 2px solid var(--primary);
+            color: var(--text);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
 
-    .time-container {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
-    }
+        .btn:hover {
+            background-color: var(--primary);
+            transform: scale(1.1);
+        }
 
-    .time-input {
-      width: 45%;
-    }
+        .btn svg {
+            width: 24px;
+            height: 24px;
+        }
 
-    .time-input label {
-      display: block;
-      margin-bottom: 5px;
-      font-size: 0.9rem;
-    }
+        .range-container {
+            margin-bottom: 20px;
+        }
 
-    .time-input input {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      background-color: var(--accent-color);
-      color: var(--text-color);
-    }
+        .range-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
 
-    .controls {
-      margin-top: 20px;
-    }
+        input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            border-radius: 10px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
 
-    .control-label {
-      display: block;
-      margin-bottom: 5px;
-      font-size: 0.9rem;
-    }
+        input[type="range"]:hover {
+            opacity: 1;
+        }
 
-    .slider {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 5px;
-      border-radius: 5px;
-      background: var(--accent-color);
-      outline: none;
-      margin-bottom: 20px;
-    }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--text);
+            border-radius: 50%;
+            cursor: pointer;
+        }
 
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary-color);
-      cursor: pointer;
-    }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--text);
+            border-radius: 50%;
+            cursor: pointer;
+        }
 
-    .slider::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary-color);
-      cursor: pointer;
-    }
+        #cutBtn {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            color: var(--text);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 0 auto;
+        }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      background-color: var(--primary-color);
-      color: var(--bg-color);
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      margin-top: 20px;
-    }
-
-    .btn:hover {
-      background-color: #45b393;
-    }
-
-    .btn i {
-      margin-right: 8px;
-    }
-
-    #audioPlayer {
-      width: 100%;
-      margin-top: 20px;
-    }
-
-    .time-display {
-      font-size: 0.9rem;
-      color: #a0a0a0;
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    #playbackSpeedContainer {
-      margin-top: 20px;
-    }
-
-    #loopContainer {
-      display: flex;
-      align-items: center;
-      margin-top: 20px;
-    }
-
-    #loopCheckbox {
-      margin-right: 10px;
-    }
-
-    .theme-toggle {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: none;
-      border: none;
-      color: var(--text-color);
-      font-size: 1.5rem;
-      cursor: pointer;
-      z-index: 1000;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      transition: background-color 0.3s ease;
-    }
-
-    .theme-toggle:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .action-buttons {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
-    }
-
-    .action-buttons .btn {
-      flex: 1;
-      margin: 0 5px;
-    }
-
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-
-    .loading-spinner {
-      width: 50px;
-      height: 50px;
-      border: 5px solid var(--primary-color);
-      border-top: 5px solid var(--accent-color);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 500px) {
-      .container {
-        padding: 20px;
-      }
-
-      h1 {
-        font-size: 1.5rem;
-      }
-
-      .time-container {
-        flex-direction: column;
-      }
-
-      .time-input {
-        width: 100%;
-        margin-bottom: 10px;
-      }
-
-      .action-buttons {
-        flex-wrap: wrap;
-      }
-
-      .action-buttons .btn {
-        flex: 1 0 calc(33.333% - 10px);
-        margin: 5px;
-        font-size: 0.9rem;
-        padding: 10px;
-      }
-    }
-  </style>
+        #cutBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 77, 77, 0.4);
+        }
+    </style>
 </head>
 <body>
-  <button class="theme-toggle" aria-label="Toggle dark/light mode">
-    <i data-lucide="sun" class="theme-icon"></i>
-  </button>
-  <div class="container">
-    <h1>Audio Cutter</h1>
-    <label for="audioFile" class="file-label">
-      <i data-lucide="upload"></i>
-      Select Audio File
-    </label>
-    <input type="file" accept="audio/*" id="audioFile" class="file-input" />
-
-    <audio controls id="audioPlayer"></audio>
-    <div class="time-display">
-      <span id="currentTime">00:00</span> / <span id="totalTime">00:00</span>
+    <div class="container">
+        <h1>Audio Cutter</h1>
+        <div class="upload-container">
+            <input type="file" id="fileInput" accept="audio/*">
+            <label for="fileInput" class="upload-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Upload Audio
+            </label>
+        </div>
+        <audio id="audio" style="display: none;"></audio>
+        <div class="controls">
+            <button id="playPauseBtn" class="btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+            <button id="loopBtn" class="btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"></path><path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4"></path><path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"></path></svg>
+            </button>
+        </div>
+        <div class="range-container">
+            <div class="range-label">
+                <span>Start: <span id="startTime">0:00</span></span>
+                <span>End: <span id="endTime">0:00</span></span>
+            </div>
+            <input type="range" id="startPoint" min="0" max="100" value="0">
+            <input type="range" id="endPoint" min="0" max="100" value="100">
+        </div>
+        <div class="range-container">
+            <div class="range-label">
+                <span>Speed: <span id="speedValue">1x</span></span>
+            </div>
+            <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        <button id="cutBtn">Cut & Download</button>
     </div>
 
-    <div class="time-container">
-      <div class="time-input">
-        <label for="startPoint">Start Point:</label>
-        <input type="text" id="startPoint" value="00:00" />
-      </div>
-      <div class="time-input">
-        <label for="endPoint">End Point:</label>
-        <input type="text" id="endPoint" value="00:00" />
-      </div>
-    </div>
+    <script>
+        const audio = document.getElementById('audio');
+        const fileInput = document.getElementById('fileInput');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const loopBtn = document.getElementById('loopBtn');
+        const startPoint = document.getElementById('startPoint');
+        const endPoint = document.getElementById('endPoint');
+        const speed = document.getElementById('speed');
+        const cutBtn = document.getElementById('cutBtn');
+        const startTimeDisplay = document.getElementById('startTime');
+        const endTimeDisplay = document.getElementById('endTime');
+        const speedValueDisplay = document.getElementById('speedValue');
 
-    <div class="controls">
-      <label for="volumeSlider" class="control-label">Volume:</label>
-      <input type="range" id="volumeSlider" class="slider" min="0" max="1" step="0.1" value="1">
-    </div>
+        let audioContext;
+        let sourceNode;
+        let isPlaying = false;
+        let isLooping = false;
 
-    <div id="playbackSpeedContainer" class="controls">
-      <label for="playbackSpeedSlider" class="control-label">Playback Speed:</label>
-      <input type="range" id="playbackSpeedSlider" class="slider" min="0.5" max="2" step="0.1" value="1">
-      <span id="playbackSpeedValue">1x</span>
-    </div>
-
-    <div id="loopContainer">
-      <input type="checkbox" id="loopCheckbox">
-      <label for="loopCheckbox">Loop selected portion</label>
-    </div>
-
-    <div class="action-buttons">
-      <button id="cutAudioButton" class="btn" onclick="cutAudio()">
-        <i data-lucide="scissors"></i>
-        Cut Audio
-      </button>
-      <button id="saveProject" class="btn">
-        <i data-lucide="save"></i>
-        Save Project
-      </button>
-      <button id="loadProject" class="btn">
-        <i data-lucide="folder-open"></i>
-        Load Project
-      </button>
-    </div>
-    <a id="downloadButton" class="btn" style="display: none;" download="cut_audio.wav">
-      <i data-lucide="download"></i>
-      Download Cut Audio
-    </a>
-  </div>
-
-  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
-    <div class="loading-spinner"></div>
-  </div>
-
-  <script>
-    let audioContext;
-    let audioBuffer;
-    const audioPlayer = document.getElementById('audioPlayer');
-    const volumeSlider = document.getElementById('volumeSlider');
-    const playbackSpeedSlider = document.getElementById('playbackSpeedSlider');
-    const playbackSpeedValue = document.getElementById('playbackSpeedValue');
-    const loopCheckbox = document.getElementById('loopCheckbox');
-    const startPointInput = document.getElementById('startPoint');
-    const endPointInput = document.getElementById('endPoint');
-    const saveProjectButton = document.getElementById('saveProject');
-    const loadProjectButton = document.getElementById('loadProject');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-
-    document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById('audioFile').addEventListener('change', handleFileSelect);
-      audioPlayer.addEventListener('timeupdate', updateTimeDisplay);
-      volumeSlider.addEventListener('input', updateVolume);
-      playbackSpeedSlider.addEventListener('input', updatePlaybackSpeed);
-      loopCheckbox.addEventListener('change', toggleLoop);
-      startPointInput.addEventListener('change', updateLoopPoints);
-      endPointInput.addEventListener('change', updateLoopPoints);
-      saveProjectButton.addEventListener('click', saveProject);
-      loadProjectButton.addEventListener('click', loadProject);
-
-      // Theme toggle
-      const themeToggle = document.querySelector('.theme-toggle');
-      const themeIcon = document.querySelector('.theme-icon');
-      themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('light-mode');
-        if (document.body.classList.contains('light-mode')) {
-          themeIcon.setAttribute('data-lucide', 'moon');
-        } else {
-          themeIcon.setAttribute('data-lucide', 'sun');
-        }
-        lucide.createIcons();
-      });
-
-      // Keyboard shortcuts
-      document.addEventListener('keydown', handleKeyboardShortcuts);
-
-      // Initialize Lucide icons
-      lucide.createIcons();
-    });
-
-    function handleFileSelect(e) {
-      const file = e.target.files[0];
-      if (file) {
-        loadingOverlay.style.display = 'flex';
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const arrayBuffer = e.target.result;
-          audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          audioContext.decodeAudioData(arrayBuffer, function(buffer) {
-            audioBuffer = buffer;
-            audioPlayer.src = URL.createObjectURL(file);
-            document.getElementById('endPoint').value = formatTime(buffer.duration);
-            loadingOverlay.style.display = 'none';
-          });
-        };
-        reader.readAsArrayBuffer(file);
-      }
-    }
-
-    function updateTimeDisplay() {
-      document.getElementById('currentTime').textContent = formatTime(audioPlayer.currentTime);
-      document.getElementById('totalTime').textContent = formatTime(audioPlayer.duration);
-    }
-
-    function updateVolume() {
-      audioPlayer.volume = this.value;
-    }
-
-    function updatePlaybackSpeed() {
-      audioPlayer.playbackRate = this.value;
-      playbackSpeedValue.textContent = `${this.value}x`;
-    }
-
-    function toggleLoop() {
-      audioPlayer.loop = this.checked;
-      updateLoopPoints();
-    }
-
-    function updateLoopPoints() {
-      if (loopCheckbox.checked) {
-        const startTime = timeStringToSeconds(startPointInput.value);
-        const endTime = timeStringToSeconds(endPointInput.value);
-        audioPlayer.currentTime = startTime;
-        audioPlayer.addEventListener('timeupdate', function() {
-          if (this.currentTime >= endTime) {
-            this.currentTime = startTime;
-          }
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                audio.src = e.target.result;
+                audio.load();
+                audio.addEventListener('loadedmetadata', function() {
+                    startPoint.max = endPoint.max = audio.duration;
+                    endPoint.value = audio.duration;
+                    updateTimeDisplay();
+                });
+            };
+            reader.readAsDataURL(file);
         });
-      }
-    }
 
-    function formatTime(timeInSeconds) {
-      const minutes = Math.floor(timeInSeconds / 60);
-      const seconds = Math.floor(timeInSeconds % 60);
-      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        loopBtn.addEventListener('click', toggleLoop);
+        startPoint.addEventListener('input', updateTimeDisplay);
+        endPoint.addEventListener('input', updateTimeDisplay);
+        speed.addEventListener('input', updateSpeed);
+        cutBtn.addEventListener('click', cutAudio);
 
-    function timeStringToSeconds(timeString) {
-      const [minutes, seconds] = timeString.split(':').map(Number);
-      return minutes * 60 + seconds;
-    }
-
-    function cutAudio() {
-      if (!audioBuffer) {
-        alert('Please select an audio file first.');
-        return;
-      }
-
-      const cutAudioButton = document.getElementById('cutAudioButton');
-      cutAudioButton.textContent = 'Processing...';
-
-      const startTime = timeStringToSeconds(document.getElementById('startPoint').value);
-      const endTime = timeStringToSeconds(document.getElementById('endPoint').value);
-
-      try {
-        const cutBuffer = extractBuffer(audioBuffer, startTime, endTime);
-        const wavBlob = bufferToWave(cutBuffer, cutBuffer.length);
-        const cutBlobUrl = URL.createObjectURL(wavBlob);
-        
-        const downloadButton = document.getElementById('downloadButton');
-        downloadButton.href = cutBlobUrl;
-        downloadButton.style.display = 'block';
-
-        cutAudioButton.innerHTML = '<i data-lucide="scissors"></i>Cut Audio';
-        lucide.createIcons();
-      } catch (error) {
-        console.error(error);
-        cutAudioButton.textContent = 'Error occurred';
-        alert('An error occurred while cutting the audio. Please try again.');
-      }
-    }
-
-    function extractBuffer(buffer, start, end) {
-      const newBuffer = audioContext.createBuffer(
-        buffer.numberOfChannels,
-        (end - start) * buffer.sampleRate,
-        buffer.sampleRate
-      );
-
-      for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-        const newChannelData = newBuffer.getChannelData(channel);
-        buffer.copyFromChannel(newChannelData, channel, start * buffer.sampleRate);
-      }
-
-      return newBuffer;
-    }
-
-    function bufferToWave(abuffer, len) {
-      const numOfChan = abuffer.numberOfChannels;
-      const length = len * numOfChan * 2 + 44;
-      const buffer = new ArrayBuffer(length);
-      const view = new DataView(buffer);
-      const channels = [];
-      let sample;
-      let offset = 0;
-      let pos = 0;
-
-      // write WAVE header
-      setUint32(0x46464952); // "RIFF"
-      setUint32(length - 8); // file length - 8
-      setUint32(0x45564157); // "WAVE"
-      setUint32(0x20746d66); // "fmt " chunk
-      setUint32(16); // length = 16
-      setUint16(1); // PCM (uncompressed)
-      setUint16(numOfChan);
-      setUint32(abuffer.sampleRate);
-      setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-      setUint16(numOfChan * 2); // block-align
-      setUint16(16); // 16-bit (hardcoded in this demo)
-      setUint32(0x61746164); // "data" - chunk
-      setUint32(length - pos - 4); // chunk length
-
-      // write interleaved data
-      for (let i = 0; i < abuffer.numberOfChannels; i++) {
-        channels.push(abuffer.getChannelData(i));
-      }
-
-      while (pos < length) {
-        for (let i = 0; i < numOfChan; i++) {
-          // interleave channels
-          sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
-          sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0; // scale to 16-bit signed int
-          view.setInt16(pos, sample, true); // write 16-bit sample
-          pos += 2;
+        function togglePlayPause() {
+            if (isPlaying) {
+                audio.pause();
+                playPauseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+            } else {
+                audio.currentTime = startPoint.value;
+                audio.play();
+                playPauseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+            }
+            isPlaying = !isPlaying;
         }
-        offset++; // next source sample
-      }
 
-      // Helper functions
-      function setUint16(data) {
-        view.setUint16(pos, data, true);
-        pos += 2;
-      }
-
-      function setUint32(data) {
-        view.setUint32(pos, data, true);
-        pos += 4;
-      }
-
-      return new Blob([buffer], { type: 'audio/wav' });
-    }
-
-    function saveProject() {
-      const project = {
-        startPoint: startPointInput.value,
-        endPoint: endPointInput.value,
-        volume: volumeSlider.value,
-        playbackSpeed: playbackSpeedSlider.value,
-        loop: loopCheckbox.checked
-      };
-
-      const blob = new Blob([JSON.stringify(project)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'audio_project.json';
-      a.click();
-    }
-
-    function loadProject() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = e => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = readerEvent => {
-          const content = readerEvent.target.result;
-          const project = JSON.parse(content);
-          applyProjectState(project);
+        function toggleLoop() {
+            isLooping = !isLooping;
+            loopBtn.style.backgroundColor = isLooping ? 'var(--primary)' : 'transparent';
         }
-        reader.readAsText(file);
-      }
-      input.click();
-    }
 
-    function applyProjectState(state) {
-      startPointInput.value = state.startPoint;
-      endPointInput.value = state.endPoint;
-      volumeSlider.value = state.volume;
-      playbackSpeedSlider.value = state.playbackSpeed;
-      loopCheckbox.checked = state.loop;
-
-      updateVolume.call(volumeSlider);
-      updatePlaybackSpeed.call(playbackSpeedSlider);
-      toggleLoop.call(loopCheckbox);
-    }
-
-    function handleKeyboardShortcuts(e) {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (audioPlayer.paused) {
-          audioPlayer.play();
-        } else {
-          audioPlayer.pause();
+        function updateTimeDisplay() {
+            startTimeDisplay.textContent = formatTime(startPoint.value);
+            endTimeDisplay.textContent = formatTime(endPoint.value);
         }
-      } else if (e.code === 'ArrowLeft') {
-        audioPlayer.currentTime -= 5;
-      } else if (e.code === 'ArrowRight') {
-        audioPlayer.currentTime += 5;
-      }
-    }
-  </script>
+
+        function updateSpeed() {
+            audio.playbackRate = speed.value;
+            speedValueDisplay.textContent = speed.value + 'x';
+        }
+
+        function formatTime(time) {
+            const minutes = Math.floor(time / 60);
+            const seconds = Math.floor(time % 60);
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function cutAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            fetch(audio.src)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                .then(audioBuffer => {
+                    const start = parseFloat(startPoint.value);
+                    const end = parseFloat(endPoint.value);
+                    const duration = end - start;
+
+                    const offlineContext = new OfflineAudioContext(
+                        audioBuffer.numberOfChannels,
+                        duration * audioBuffer.sampleRate,
+                        audioBuffer.sampleRate
+                    );
+
+                    const source = offlineContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(offlineContext.destination);
+                    source.start(0, start, duration);
+
+                    offlineContext.startRendering().then(renderedBuffer => {
+                        const wav = audioBufferToWav(renderedBuffer);
+                        const blob = new Blob([new DataView(wav)], { type: 'audio/wav' });
+                        const url = URL.createObjectURL(blob);
+
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = 'cut_audio.wav';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    });
+                });
+        }
+
+        function audioBufferToWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const length = buffer.length * numOfChan * 2 + 44;
+            const out = new ArrayBuffer(length);
+            const view = new DataView(out);
+            const channels = [];
+            let i;
+            let sample;
+            let offset = 0;
+            let pos = 0;
+
+            // write WAVE header
+            setUint32(0x46464952);
+            setUint32(length - 8);
+            setUint32(0x45564157);
+            setUint32(0x20746d66);
+            setUint32(16);
+            setUint16(1);
+            setUint16(numOfChan);
+            setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2);
+            setUint16(16);
+            setUint32(0x61746164);
+            setUint32(length - pos - 4);
+
+            for (i = 0; i < buffer.numberOfChannels; i++)
+                channels.push(buffer.getChannelData(i));
+
+            while (pos < length) {
+                for (i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+                offset++;
+            }
+
+            return out;
+
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+        }
+
+        audio.addEventListener('timeupdate', function() {
+            if (audio.currentTime >= endPoint.value) {
+                if (isLooping) {
+                audio.currentTime = startPoint.value;
+                } else {
+                    audio.pause();
+                    isPlaying = false;
+                    playPauseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+                }
+            }
+        });
+    </script>
 </body>
 </html>
