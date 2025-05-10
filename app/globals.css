@@ -32,7 +32,13 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 262.1 83.3% 57.8%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
+
+    /* Dynamic theme colors (Material 3 inspired) */
+    --dynamic-primary: rgb(139, 92, 246);
+    --dynamic-secondary: rgb(99, 102, 241);
+    --dynamic-tertiary: rgb(236, 72, 153);
+    --dynamic-surface: rgb(255, 255, 255);
   }
 
   .dark {
@@ -45,24 +51,30 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 262.1 83.3% 57.8%;
+    --primary: 262.1 83.3% 76.8%; /* Increased lightness for better visibility */
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217.2 32.6% 40.5%; /* Increased lightness for better visibility */
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217.2 32.6% 27.5%; /* Increased lightness for better visibility */
+    --muted-foreground: 215 20.2% 75.1%; /* Increased lightness for better visibility */
 
-    --accent: 262.1 83.3% 57.8%;
+    --accent: 262.1 83.3% 76.8%; /* Increased lightness for better visibility */
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62.8% 50.6%; /* Increased lightness for better visibility */
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 262.1 83.3% 57.8%;
+    --border: 217.2 32.6% 27.5%; /* Increased lightness for better visibility */
+    --input: 217.2 32.6% 27.5%; /* Increased lightness for better visibility */
+    --ring: 262.1 83.3% 76.8%; /* Increased lightness for better visibility */
+
+    /* Dynamic theme colors for dark mode */
+    --dynamic-primary: rgb(167, 139, 250);
+    --dynamic-secondary: rgb(129, 140, 248);
+    --dynamic-tertiary: rgb(244, 114, 182);
+    --dynamic-surface: rgb(15, 23, 42);
   }
 }
 
@@ -72,7 +84,47 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+/* Material 3 inspired components */
+.material-card {
+  @apply rounded-3xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-xl;
+  background-color: var(--dynamic-surface);
+}
+
+.material-button {
+  @apply rounded-full px-6 py-3 font-medium transition-all duration-300 shadow-md hover:shadow-lg active:scale-95;
+  background-color: var(--dynamic-primary);
+  color: white;
+}
+
+.material-button-outline {
+  @apply rounded-full px-6 py-3 font-medium transition-all duration-300 border-2 hover:shadow-md active:scale-95;
+  border-color: var(--dynamic-primary);
+  color: var(--dynamic-primary);
+}
+
+.material-input {
+  @apply rounded-xl border-2 px-4 py-3 transition-all duration-300 focus:ring-2 focus:ring-opacity-50 bg-white/10 dark:bg-slate-800/50;
+  border-color: var(--primary);
+}
+
+.material-chip {
+  @apply rounded-full px-4 py-2 text-sm font-medium transition-all duration-300;
+  background-color: var(--dynamic-secondary);
+  color: white;
+}
+
+.material-fab {
+  @apply rounded-full w-14 h-14 flex items-center justify-center shadow-lg transition-all duration-300 hover:shadow-xl active:scale-95;
+  background-color: var(--dynamic-primary);
+  color: white;
+}
+
+.material-surface {
+  background-color: var(--dynamic-surface);
 }
 
 /* Custom animations */
@@ -109,6 +161,44 @@
   }
 }
 
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .animate-slide-up {
   animation: slide-up 0.3s ease-out forwards;
 }
@@ -119,6 +209,34 @@
 
 .animate-wave {
   animation: wave 1.5s infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+.animate-rotate {
+  animation: rotate 10s linear infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.dark .animate-shimmer {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(0, 0, 0, 0) 100%);
+  background-size: 200% 100%;
 }
 
 .animate-wave-delay-1 {
@@ -157,12 +275,143 @@
 
 /* Glass effect */
 .glass-effect {
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .dark .glass-effect {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Material 3 inspired shapes */
+.shape-circle {
+  border-radius: 50%;
+}
+
+.shape-pill {
+  border-radius: 9999px;
+}
+
+.shape-rounded-xl {
+  border-radius: 1rem;
+}
+
+.shape-blob-1 {
+  border-radius: 71% 29% 41% 59% / 59% 43% 57% 41%;
+}
+
+.shape-blob-2 {
+  border-radius: 37% 63% 56% 44% / 49% 56% 44% 51%;
+}
+
+.shape-blob-3 {
+  border-radius: 63% 37% 37% 63% / 43% 37% 63% 57%;
+}
+
+/* Neumorphic effect */
+.neumorphic-light {
+  background: #f0f0f3;
+  box-shadow: 10px 10px 20px #d1d1d4, -10px -10px 20px #ffffff;
+  border-radius: 1rem;
+}
+
+.neumorphic-dark {
+  background: #1e1e24;
+  box-shadow: 10px 10px 20px #15151a, -10px -10px 20px #27272e;
+  border-radius: 1rem;
+}
+
+/* Material 3 typography */
+.display-large {
+  font-size: 3.5rem;
+  line-height: 4rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.display-medium {
+  font-size: 2.8rem;
+  line-height: 3.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.display-small {
+  font-size: 2.25rem;
+  line-height: 2.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.headline-large {
+  font-size: 2rem;
+  line-height: 2.5rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.headline-medium {
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.headline-small {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.title-large {
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+
+.title-medium {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+.title-small {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+.body-large {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+}
+
+.body-medium {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+}
+
+.body-small {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
+}
+
+/* Gradient text */
+.gradient-text {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, var(--dynamic-primary), var(--dynamic-secondary));
+}
+
+.time-input {
+  @apply rounded-xl border-2 px-10 py-3 transition-all duration-300 focus:ring-2 focus:ring-opacity-50 bg-white/10 dark:bg-slate-800/50 font-mono text-white dark:text-white;
+  border-color: var(--primary);
 }

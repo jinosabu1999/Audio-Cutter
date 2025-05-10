@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -32,11 +32,19 @@ import {
   Zap,
   Download,
   Bookmark,
+  Music,
+  Minus,
+  Plus,
 } from "lucide-react"
 import { formatTime, parseTimeInput } from "@/lib/time-utils"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/ui/theme-context"
 import { useToast } from "@/components/ui/toast-provider"
+import { AudioVisualizer } from "@/components/ui/audio-visualizer"
+import { MaterialButton } from "@/components/ui/material-button"
+import { MaterialCard } from "@/components/ui/material-card"
+import { SpeedControl } from "@/components/ui/speed-control"
+import { BookmarkManager } from "@/components/ui/bookmark-manager"
 
 interface SavedProject {
   id: string
@@ -74,6 +82,12 @@ export default function AudioCutter() {
   const [showSavedProjects, setShowSavedProjects] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<string>("editor")
   const [visualizerData, setVisualizerData] = useState<number[]>([])
+  const [zoomLevel, setZoomLevel] = useState<number>(1)
+  const [loopPlayback, setLoopPlayback] = useState<boolean>(false)
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1)
+  const [showBookmarks, setShowBookmarks] = useState<boolean>(false)
+  const [batchFiles, setBatchFiles] = useState<File[]>([])
+  const [showBatchProcessing, setShowBatchProcessing] = useState<boolean>(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -186,50 +200,70 @@ export default function AudioCutter() {
 
   // Handle time input changes
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Store the cursor position
-    const cursorPosition = e.target.selectionStart || 0
     const value = e.target.value
 
-    const newStartTime = parseTimeInput(value)
-    if (newStartTime !== null && newStartTime >= 0 && newStartTime < endTime) {
-      setStartTime(newStartTime)
-      if (currentTime < newStartTime) {
-        setCurrentTime(newStartTime)
-        if (audioRef.current) {
-          audioRef.current.currentTime = newStartTime
-        }
-      }
+    // Allow direct editing without parsing immediately
+    if (value.length <= 9) {
+      // Max length for MM:SS.ms format
+      // Store the raw input value
+      const inputEl = startTimeInputRef.current
+      if (inputEl) {
+        // Keep cursor position
+        const cursorPos = e.target.selectionStart || 0
 
-      // Schedule restoration of cursor position
-      setTimeout(() => {
-        if (startTimeInputRef.current) {
-          startTimeInputRef.current.setSelectionRange(cursorPosition, cursorPosition)
+        // Only parse and apply when the format is valid
+        const newStartTime = parseTimeInput(value)
+        if (newStartTime !== null && newStartTime >= 0 && newStartTime < endTime) {
+          setStartTime(newStartTime)
+          if (currentTime < newStartTime) {
+            setCurrentTime(newStartTime)
+            if (audioRef.current) {
+              audioRef.current.currentTime = newStartTime
+            }
+          }
         }
-      }, 0)
+
+        // Restore cursor position after React updates the input
+        setTimeout(() => {
+          if (inputEl) {
+            inputEl.setSelectionRange(cursorPos, cursorPos)
+          }
+        }, 0)
+      }
     }
   }
 
   const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Store the cursor position
-    const cursorPosition = e.target.selectionStart || 0
     const value = e.target.value
 
-    const newEndTime = parseTimeInput(value)
-    if (newEndTime !== null && newEndTime > startTime && newEndTime <= duration) {
-      setEndTime(newEndTime)
-      if (currentTime > newEndTime) {
-        setCurrentTime(newEndTime)
-        if (audioRef.current) {
-          audioRef.current.currentTime = newEndTime
-        }
-      }
+    // Allow direct editing without parsing immediately
+    if (value.length <= 9) {
+      // Max length for MM:SS.ms format
+      // Store the raw input value
+      const inputEl = endTimeInputRef.current
+      if (inputEl) {
+        // Keep cursor position
+        const cursorPos = e.target.selectionStart || 0
 
-      // Schedule restoration of cursor position
-      setTimeout(() => {
-        if (endTimeInputRef.current) {
-          endTimeInputRef.current.setSelectionRange(cursorPosition, cursorPosition)
+        // Only parse and apply when the format is valid
+        const newEndTime = parseTimeInput(value)
+        if (newEndTime !== null && newEndTime > startTime && newEndTime <= duration) {
+          setEndTime(newEndTime)
+          if (currentTime > newEndTime) {
+            setCurrentTime(newEndTime)
+            if (audioRef.current) {
+              audioRef.current.currentTime = newEndTime
+            }
+          }
         }
-      }, 0)
+
+        // Restore cursor position after React updates the input
+        setTimeout(() => {
+          if (inputEl) {
+            inputEl.setSelectionRange(cursorPos, cursorPos)
+          }
+        }, 0)
+      }
     }
   }
 
@@ -450,12 +484,17 @@ export default function AudioCutter() {
       const current = audioRef.current.currentTime
       setCurrentTime(current)
 
-      // Stop playback if we reach the end time
+      // Stop or loop playback if we reach the end time
       if (current >= endTime) {
-        audioRef.current.pause()
-        setIsPlaying(false)
-        audioRef.current.currentTime = endTime
-        setCurrentTime(endTime)
+        if (loopPlayback) {
+          audioRef.current.currentTime = startTime
+          setCurrentTime(startTime)
+        } else {
+          audioRef.current.pause()
+          setIsPlaying(false)
+          audioRef.current.currentTime = endTime
+          setCurrentTime(endTime)
+        }
       }
     }
 
@@ -466,7 +505,7 @@ export default function AudioCutter() {
         audioRef.current.removeEventListener("timeupdate", handleTimeUpdate)
       }
     }
-  }, [endTime])
+  }, [endTime, loopPlayback, startTime])
 
   // Clean up audio URL when component unmounts
   useEffect(() => {
@@ -504,6 +543,24 @@ export default function AudioCutter() {
             audioRef.current.currentTime = newTime
           }
           break
+        case "s": // Set start point
+          if (audioRef.current) {
+            const newStartTime = currentTime
+            if (newStartTime < endTime) {
+              setStartTime(newStartTime)
+              addToast("Start point set", "info")
+            }
+          }
+          break
+        case "e": // Set end point
+          if (audioRef.current) {
+            const newEndTime = currentTime
+            if (newEndTime > startTime) {
+              setEndTime(newEndTime)
+              addToast("End point set", "info")
+            }
+          }
+          break
       }
     }
 
@@ -514,28 +571,75 @@ export default function AudioCutter() {
     }
   }, [currentTime, startTime, endTime, file])
 
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed)
+    if (audioRef.current) {
+      audioRef.current.playbackRate = speed
+    }
+  }
+
+  const jumpToBookmark = (time: number) => {
+    if (audioRef.current) {
+      const clampedTime = Math.max(0, Math.min(time, duration))
+      setCurrentTime(clampedTime)
+      audioRef.current.currentTime = clampedTime
+    }
+  }
+
+  const handleBatchFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).filter((file) => file.type.startsWith("audio/"))
+      setBatchFiles((prev) => [...prev, ...newFiles])
+    }
+  }
+
+  const removeBatchFile = (index: number) => {
+    setBatchFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const processBatchFiles = async () => {
+    if (batchFiles.length === 0) return
+
+    setIsProcessing(true)
+    addToast(`Processing ${batchFiles.length} files...`, "info")
+
+    try {
+      // In a real app, you'd process each file here
+      // For demo, we'll just simulate processing
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      addToast(`Successfully processed ${batchFiles.length} files!`, "success")
+      setBatchFiles([])
+    } catch (error) {
+      console.error("Error processing batch files:", error)
+      addToast("Error processing files. Please try again.", "error")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Help Popup */}
       {showHelpPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 animate-slide-up border border-slate-200 dark:border-slate-700">
+          <MaterialCard variant="glass" className="max-w-md w-full mx-4 animate-slide-up">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                <Info className="w-5 h-5 mr-2 text-violet-500" />
+              <h3 className="title-large flex items-center text-slate-800 dark:text-slate-100">
+                <Info className="w-5 h-5 mr-2 text-[var(--dynamic-primary)]" />
                 Time Format Guide
               </h3>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+              <MaterialButton
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-full"
                 onClick={() => setShowHelpPopup(false)}
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
-              </Button>
+              </MaterialButton>
             </div>
-            <div className="space-y-3 text-slate-700 dark:text-slate-300">
+            <div className="space-y-3 body-medium text-slate-700 dark:text-slate-300">
               <p>When editing the start and end times, use the following format:</p>
               <div className="bg-slate-100 dark:bg-slate-700 p-3 rounded-md font-mono text-sm border border-slate-200 dark:border-slate-600">
                 <strong>mm:ss.ms</strong> - minutes:seconds.milliseconds
@@ -553,13 +657,10 @@ export default function AudioCutter() {
                 </li>
               </ul>
             </div>
-            <Button
-              className="w-full mt-6 bg-violet-600 hover:bg-violet-700 text-white"
-              onClick={() => setShowHelpPopup(false)}
-            >
+            <MaterialButton className="w-full mt-6" onClick={() => setShowHelpPopup(false)}>
               Got it!
-            </Button>
-          </div>
+            </MaterialButton>
+          </MaterialCard>
         </div>
       )}
 
@@ -582,31 +683,36 @@ export default function AudioCutter() {
 
         {/* Editor Tab */}
         <TabsContent value="editor" className="mt-0">
-          <Card
+          <MaterialCard
+            variant="glass"
             className={cn(
-              "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 mb-8 transition-all duration-300 shadow-md rounded-xl overflow-hidden",
-              isDragging ? "border-dashed border-2 border-violet-400 dark:border-violet-500" : "",
+              "mb-8 transition-all duration-500",
+              isDragging ? "border-dashed border-2 border-[var(--dynamic-primary)]" : "",
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <CardContent className="p-8">
+            <div className="p-8">
               {!file ? (
                 <div className="text-center">
-                  <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                    <Upload className="w-12 h-12 text-violet-500 dark:text-violet-400" />
+                  <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 flex items-center justify-center animate-float">
+                    <div className="relative">
+                      <Music className="w-16 h-16 text-[var(--dynamic-primary)]" />
+                      <div className="absolute inset-0 bg-[var(--dynamic-primary)] opacity-20 blur-xl rounded-full animate-pulse-glow"></div>
+                    </div>
                   </div>
-                  <h2 className="text-2xl font-semibold mb-2 text-slate-800 dark:text-slate-100">Upload Your Audio</h2>
-                  <p className="text-slate-600 dark:text-slate-400 mb-6">
+                  <h2 className="headline-medium mb-2 text-slate-800 dark:text-slate-100">Upload Your Audio</h2>
+                  <p className="body-large text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto">
                     Drag and drop your audio file here or click to browse
                   </p>
-                  <Button
-                    className="bg-violet-600 hover:bg-violet-700 text-white"
+                  <MaterialButton
                     onClick={() => document.getElementById("audio-upload")?.click()}
+                    className="animate-shimmer"
                   >
+                    <Upload className="mr-2 h-5 w-5" />
                     Select Audio File
-                  </Button>
+                  </MaterialButton>
                   <input
                     id="audio-upload"
                     type="file"
@@ -617,17 +723,17 @@ export default function AudioCutter() {
                 </div>
               ) : (
                 <div className="text-center">
-                  <div className="flex items-center justify-center mb-4">
+                  <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
                     <Badge
                       variant="outline"
-                      className="px-3 py-1 text-sm bg-violet-50 dark:bg-violet-900/30 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300"
+                      className="px-3 py-1 text-sm bg-primary/10 dark:bg-primary/20 border-primary/30 dark:border-primary/30 text-primary dark:text-primary-foreground"
                     >
                       {file.name}
                     </Badge>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="ml-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                      className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                       onClick={() => {
                         setFile(null)
                         setAudioUrl(null)
@@ -660,7 +766,7 @@ export default function AudioCutter() {
                       id="project-name"
                       value={projectName}
                       onChange={(e) => setProjectName(e.target.value)}
-                      className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-violet-500 text-slate-900 dark:text-slate-100"
+                      className="material-input"
                       placeholder="Enter project name"
                     />
                   </div>
@@ -671,55 +777,51 @@ export default function AudioCutter() {
                     src={audioUrl || undefined}
                     onEnded={() => setIsPlaying(false)}
                     className="hidden"
+                    playbackRate={playbackSpeed}
                   />
 
                   {/* Audio Visualizer */}
-                  <div className="mb-6 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <div className="h-24 flex items-end justify-between gap-0.5 mb-2">
-                      {visualizerData.map((height, index) => {
-                        const isInRange =
-                          (index / visualizerData.length) * duration >= startTime &&
-                          (index / visualizerData.length) * duration <= endTime
-                        const isCurrentPosition =
-                          Math.abs((index / visualizerData.length) * duration - currentTime) <
-                          duration / visualizerData.length
-
-                        return (
-                          <div
-                            key={index}
-                            className={`w-full h-full flex items-end ${isCurrentPosition ? "animate-pulse-glow" : ""}`}
-                            onClick={() => updateCurrentTime((index / visualizerData.length) * duration)}
-                          >
-                            <div
-                              style={{ height: `${height * 100}%` }}
-                              className={`w-full rounded-t ${
-                                isCurrentPosition
-                                  ? "bg-violet-500 dark:bg-violet-400"
-                                  : isInRange
-                                    ? "bg-violet-400 dark:bg-violet-600"
-                                    : "bg-slate-300 dark:bg-slate-600"
-                              } transition-all duration-150 hover:bg-violet-500 dark:hover:bg-violet-400 cursor-pointer`}
-                            ></div>
-                          </div>
-                        )
-                      })}
+                  <MaterialCard variant="glass" className="mb-6 p-4">
+                    <AudioVisualizer
+                      data={visualizerData}
+                      currentTime={currentTime}
+                      duration={duration}
+                      startTime={startTime}
+                      endTime={endTime}
+                      onTimeUpdate={updateCurrentTime}
+                      isPlaying={isPlaying}
+                      zoomLevel={zoomLevel}
+                    />
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setZoomLevel(Math.max(1, zoomLevel - 0.5))}
+                        disabled={zoomLevel <= 1}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs text-slate-600 dark:text-slate-400">Zoom: {zoomLevel}x</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setZoomLevel(Math.min(4, zoomLevel + 0.5))}
+                        disabled={zoomLevel >= 4}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+                    <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400 mt-2">
                       <span>{formatTime(currentTime)}</span>
                       <span>{formatTime(duration)}</span>
                     </div>
-                  </div>
+                  </MaterialCard>
 
                   {/* Controls */}
                   <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="rounded-full w-14 h-14 border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300 shadow-md"
-                      onClick={togglePlayPause}
-                    >
+                    <MaterialButton variant="fab" className="animate-breathe" onClick={togglePlayPause}>
                       {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                    </Button>
+                    </MaterialButton>
 
                     <Button
                       variant="ghost"
@@ -729,14 +831,28 @@ export default function AudioCutter() {
                     >
                       {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                     </Button>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Switch id="loop-playback" checked={loopPlayback} onCheckedChange={setLoopPlayback} />
+                      <Label htmlFor="loop-playback" className="text-sm cursor-pointer">
+                        Loop playback
+                      </Label>
+                    </div>
                   </div>
 
-                  {/* Cutting Controls - Modern Design */}
+                  <div className="mt-4 max-w-xs mx-auto">
+                    <SpeedControl onChange={handleSpeedChange} defaultValue={1} />
+                  </div>
+
+                  {/* Cutting Controls - Material 3 Design */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="space-y-2 p-6 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 rounded-xl border border-violet-100 dark:border-violet-800/30 shadow-sm">
+                    <MaterialCard
+                      variant="glass"
+                      shape="blob1"
+                      className="space-y-2 p-6 bg-gradient-to-br from-primary/30 to-secondary/30 dark:from-primary/20 dark:to-secondary/20"
+                    >
                       <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-800/30 flex items-center justify-center mr-3">
-                          <Clock className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+                        <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mr-3 shadow-md">
+                          <Clock className="h-5 w-5 text-primary" />
                         </div>
                         <div>
                           <Label
@@ -745,12 +861,12 @@ export default function AudioCutter() {
                           >
                             Start Time
                           </Label>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">Set where to begin cutting</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">Set where to begin cutting</p>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 ml-auto text-slate-400 hover:text-violet-600 dark:hover:text-violet-300"
+                          className="h-6 w-6 ml-auto text-slate-400 hover:text-primary dark:hover:text-primary"
                           onClick={() => setShowHelpPopup(true)}
                         >
                           <HelpCircle className="h-3 w-3" />
@@ -762,24 +878,28 @@ export default function AudioCutter() {
                           ref={startTimeInputRef}
                           value={formatTime(startTime)}
                           onChange={handleStartTimeChange}
-                          className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:border-violet-500 text-slate-900 dark:text-slate-100 pl-10 font-mono"
+                          className="time-input"
                         />
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                          <Zap className="h-4 w-4 text-violet-500 dark:text-violet-400" />
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5">
+                          <Zap className="h-4 w-4 text-primary" />
                         </div>
                       </div>
-                    </div>
+                    </MaterialCard>
 
-                    <div className="space-y-2 p-6 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 rounded-xl border border-violet-100 dark:border-violet-800/30 shadow-sm">
+                    <MaterialCard
+                      variant="glass"
+                      shape="blob2"
+                      className="space-y-2 p-6 bg-gradient-to-br from-secondary/30 to-primary/30 dark:from-secondary/20 dark:to-primary/20"
+                    >
                       <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-800/30 flex items-center justify-center mr-3">
-                          <Clock className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+                        <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mr-3 shadow-md">
+                          <Clock className="h-5 w-5 text-secondary" />
                         </div>
                         <div>
                           <Label htmlFor="end-time" className="text-sm font-medium text-slate-800 dark:text-slate-200">
                             End Time
                           </Label>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">Set where to end cutting</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">Set where to end cutting</p>
                         </div>
                       </div>
                       <div className="relative">
@@ -788,40 +908,62 @@ export default function AudioCutter() {
                           ref={endTimeInputRef}
                           value={formatTime(endTime)}
                           onChange={handleEndTimeChange}
-                          className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:border-violet-500 text-slate-900 dark:text-slate-100 pl-10 font-mono"
+                          className="time-input"
                         />
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                          <Zap className="h-4 w-4 text-violet-500 dark:text-violet-400" />
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5">
+                          <Zap className="h-4 w-4 text-secondary" />
                         </div>
                       </div>
-                    </div>
+                    </MaterialCard>
+                  </div>
+
+                  <div className="flex flex-wrap justify-center gap-2 mb-4 text-xs text-slate-500 dark:text-slate-400">
+                    <span className="px-2 py-1 bg-slate-200/20 dark:bg-slate-700/30 rounded-md">Space: Play/Pause</span>
+                    <span className="px-2 py-1 bg-slate-200/20 dark:bg-slate-700/30 rounded-md">←/→: Skip 5s</span>
+                    <span className="px-2 py-1 bg-slate-200/20 dark:bg-slate-700/30 rounded-md">S: Set Start</span>
+                    <span className="px-2 py-1 bg-slate-200/20 dark:bg-slate-700/30 rounded-md">E: Set End</span>
                   </div>
 
                   {/* Advanced Options */}
                   <div className="mb-6">
-                    <Button
-                      variant="ghost"
-                      className="text-sm flex items-center gap-2 text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300"
+                    <MaterialButton
+                      variant="outline"
+                      className="text-sm flex items-center gap-2"
                       onClick={() => setShowEffects(!showEffects)}
                     >
                       <Wand2 className="h-4 w-4" />
                       {showEffects ? "Hide Advanced Options" : "Show Advanced Options"}
-                    </Button>
+                    </MaterialButton>
+
+                    <MaterialButton
+                      variant="outline"
+                      className="text-sm flex items-center gap-2 ml-2"
+                      onClick={() => setShowBookmarks(!showBookmarks)}
+                    >
+                      <Bookmark className="h-4 w-4" />
+                      {showBookmarks ? "Hide Bookmarks" : "Show Bookmarks"}
+                    </MaterialButton>
+
+                    <MaterialButton
+                      variant="outline"
+                      className="text-sm flex items-center gap-2 ml-2"
+                      onClick={() => setShowBatchProcessing(!showBatchProcessing)}
+                    >
+                      <Layers className="h-4 w-4" />
+                      {showBatchProcessing ? "Hide Batch Processing" : "Batch Processing"}
+                    </MaterialButton>
 
                     {showEffects && (
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                      <MaterialCard variant="glass" className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
                         <div className="space-y-2">
                           <Label htmlFor="effect" className="text-sm text-slate-700 dark:text-slate-300">
                             Audio Effect
                           </Label>
                           <Select value={selectedEffect} onValueChange={setSelectedEffect}>
-                            <SelectTrigger
-                              id="effect"
-                              className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                            >
+                            <SelectTrigger id="effect" className="material-input">
                               <SelectValue placeholder="Select effect" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-xl">
                               <SelectItem value="none">None</SelectItem>
                               <SelectItem value="echo">Echo</SelectItem>
                               <SelectItem value="reverb">Reverb</SelectItem>
@@ -836,13 +978,10 @@ export default function AudioCutter() {
                             Export Format
                           </Label>
                           <Select value={exportFormat} onValueChange={setExportFormat}>
-                            <SelectTrigger
-                              id="format"
-                              className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                            >
+                            <SelectTrigger id="format" className="material-input">
                               <SelectValue placeholder="Select format" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-xl">
                               <SelectItem value="mp3">MP3</SelectItem>
                               <SelectItem value="wav">WAV</SelectItem>
                               <SelectItem value="ogg">OGG</SelectItem>
@@ -856,13 +995,10 @@ export default function AudioCutter() {
                             Export Quality
                           </Label>
                           <Select value={exportQuality} onValueChange={setExportQuality}>
-                            <SelectTrigger
-                              id="quality"
-                              className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                            >
+                            <SelectTrigger id="quality" className="material-input">
                               <SelectValue placeholder="Select quality" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                            <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-xl">
                               <SelectItem value="low">Low (64kbps)</SelectItem>
                               <SelectItem value="medium">Medium (128kbps)</SelectItem>
                               <SelectItem value="high">High (256kbps)</SelectItem>
@@ -885,87 +1021,165 @@ export default function AudioCutter() {
                             <Switch id="fade" />
                           </div>
                         </div>
-                      </div>
+                      </MaterialCard>
+                    )}
+
+                    {showBookmarks && (
+                      <MaterialCard variant="glass" className="mt-4 p-6">
+                        <h3 className="text-lg font-medium mb-4 text-slate-800 dark:text-slate-200">Audio Bookmarks</h3>
+                        <BookmarkManager currentTime={currentTime} onJumpToBookmark={jumpToBookmark} />
+                      </MaterialCard>
+                    )}
+
+                    {showBatchProcessing && (
+                      <MaterialCard variant="glass" className="mt-4 p-6">
+                        <h3 className="text-lg font-medium mb-4 text-slate-800 dark:text-slate-200">
+                          Batch Processing
+                        </h3>
+
+                        <div className="space-y-4">
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Process multiple audio files with the same settings.
+                          </p>
+
+                          <div className="flex items-center gap-2">
+                            <Button onClick={() => document.getElementById("batch-upload")?.click()}>
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Files
+                            </Button>
+                            <input
+                              id="batch-upload"
+                              type="file"
+                              accept="audio/*"
+                              multiple
+                              className="hidden"
+                              onChange={handleBatchFileSelect}
+                            />
+
+                            <MaterialButton
+                              onClick={processBatchFiles}
+                              disabled={batchFiles.length === 0 || isProcessing}
+                            >
+                              {isProcessing ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  <Scissors className="h-4 w-4 mr-1" />
+                                  Process All
+                                </>
+                              )}
+                            </MaterialButton>
+                          </div>
+
+                          {batchFiles.length > 0 ? (
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                              {batchFiles.map((file, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between p-2 bg-slate-100 dark:bg-slate-800 rounded-lg"
+                                >
+                                  <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                    onClick={() => removeBatchFile(index)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                    <span className="sr-only">Remove file</span>
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 text-sm text-slate-500 dark:text-slate-400">
+                              No files added yet. Add audio files to process them in batch.
+                            </div>
+                          )}
+                        </div>
+                      </MaterialCard>
                     )}
                   </div>
 
                   {/* Cut Completed Message */}
                   {cutCompleted && (
-                    <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-300 flex items-center justify-center gap-2">
+                    <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-green-700 dark:text-green-300 flex items-center justify-center gap-2 animate-slide-up">
                       <Scissors className="h-4 w-4" />
                       <span>Audio successfully cut! Your download should begin automatically.</span>
                     </div>
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex flex-wrap justify-center gap-4 p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <Button
-                      className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white gap-2 px-6 py-6 h-auto rounded-xl shadow-lg shadow-violet-500/20 dark:shadow-violet-900/30"
+                  <div className="flex flex-wrap justify-center gap-4 p-6">
+                    <MaterialButton
+                      variant="default"
+                      size="lg"
+                      elevation="lg"
+                      className="animate-shimmer"
                       onClick={exportAudio}
                       disabled={isProcessing}
                     >
                       {isProcessing ? (
                         <>
-                          <RefreshCw className="h-5 w-5 animate-spin" />
+                          <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
                           Processing...
                         </>
                       ) : (
                         <>
-                          <Download className="h-5 w-5" />
+                          <Download className="h-5 w-5 mr-2" />
                           Cut & Export
                         </>
                       )}
-                    </Button>
+                    </MaterialButton>
 
-                    <Button
-                      variant="outline"
-                      className="border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300 gap-2 px-6 py-6 h-auto rounded-xl"
-                      onClick={saveProject}
-                    >
-                      <Bookmark className="h-5 w-5" />
+                    <MaterialButton variant="outline" size="lg" onClick={saveProject}>
+                      <Bookmark className="h-5 w-5 mr-2" />
                       Save Project
-                    </Button>
+                    </MaterialButton>
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </MaterialCard>
         </TabsContent>
 
         {/* Projects Tab */}
         <TabsContent value="projects" className="mt-0">
-          <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-md rounded-xl overflow-hidden">
+          <MaterialCard variant="glass">
             <CardHeader>
-              <CardTitle className="text-xl text-slate-800 dark:text-slate-100">Your Saved Projects</CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
+              <CardTitle className="headline-small text-slate-800 dark:text-slate-100">Your Saved Projects</CardTitle>
+              <CardDescription className="body-medium text-slate-600 dark:text-slate-400">
                 Access and manage your previously saved audio projects
               </CardDescription>
             </CardHeader>
             <CardContent>
               {savedProjects.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                    <Folder className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center animate-float">
+                    <Folder className="w-10 h-10 text-slate-400 dark:text-slate-500" />
                   </div>
-                  <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">No saved projects yet</h3>
-                  <p className="text-slate-500 dark:text-slate-400 mb-4">Save your work to access it later</p>
-                  <Button
-                    variant="outline"
-                    className="border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300"
-                    onClick={() => setActiveTab("editor")}
-                  >
+                  <h3 className="title-medium text-slate-700 dark:text-slate-300 mb-2">No saved projects yet</h3>
+                  <p className="body-medium text-slate-500 dark:text-slate-400 mb-4">
+                    Save your work to access it later
+                  </p>
+                  <MaterialButton variant="outline" onClick={() => setActiveTab("editor")}>
                     Go to Editor
-                  </Button>
+                  </MaterialButton>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {savedProjects.map((project) => (
-                    <div
+                    <MaterialCard
                       key={project.id}
-                      className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-violet-200 dark:hover:border-violet-700 transition-colors"
+                      variant="glass"
+                      padding="sm"
+                      className="flex items-center justify-between hover:scale-[1.01] transition-transform"
                     >
                       <div className="flex-1">
-                        <h3 className="font-medium text-slate-800 dark:text-slate-100">{project.name}</h3>
+                        <h3 className="title-small text-slate-800 dark:text-slate-100">{project.name}</h3>
                         <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mt-1">
                           <Clock className="h-3 w-3 mr-1" />
                           <span>{formatTime(project.duration)}</span>
@@ -974,15 +1188,10 @@ export default function AudioCutter() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/30 text-violet-700 dark:text-violet-300"
-                          onClick={() => loadProject(project)}
-                        >
+                        <MaterialButton variant="tonal" size="sm" onClick={() => loadProject(project)}>
                           <ChevronRight className="h-4 w-4" />
                           <span className="sr-only md:not-sr-only md:ml-2">Open</span>
-                        </Button>
+                        </MaterialButton>
                         <Button
                           variant="outline"
                           size="sm"
@@ -993,12 +1202,12 @@ export default function AudioCutter() {
                           <span className="sr-only md:not-sr-only md:ml-2">Delete</span>
                         </Button>
                       </div>
-                    </div>
+                    </MaterialCard>
                   ))}
                 </div>
               )}
             </CardContent>
-          </Card>
+          </MaterialCard>
         </TabsContent>
       </Tabs>
 
@@ -1008,199 +1217,213 @@ export default function AudioCutter() {
           <TabsList className="grid w-full grid-cols-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1">
             <TabsTrigger
               value="features"
-              className="text-slate-800 dark:text-slate-200 data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/30 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-300 rounded-lg"
+              className="text-slate-800 dark:text-slate-200 data-[state=active]:bg-[var(--dynamic-primary)] data-[state=active]:bg-opacity-10 dark:data-[state=active]:bg-opacity-20 data-[state=active]:text-[var(--dynamic-primary)] rounded-lg"
             >
               Features
             </TabsTrigger>
             <TabsTrigger
               value="shortcuts"
-              className="text-slate-800 dark:text-slate-200 data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/30 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-300 rounded-lg"
+              className="text-slate-800 dark:text-slate-200 data-[state=active]:bg-[var(--dynamic-primary)] data-[state=active]:bg-opacity-10 dark:data-[state=active]:bg-opacity-20 data-[state=active]:text-[var(--dynamic-primary)] rounded-lg"
             >
               Shortcuts
             </TabsTrigger>
             <TabsTrigger
               value="tips"
-              className="text-slate-800 dark:text-slate-200 data-[state=active]:bg-violet-50 dark:data-[state=active]:bg-violet-900/30 data-[state=active]:text-violet-700 dark:data-[state=active]:text-violet-300 rounded-lg"
+              className="text-slate-800 dark:text-slate-200 data-[state=active]:bg-[var(--dynamic-primary)] data-[state=active]:bg-opacity-10 dark:data-[state=active]:bg-opacity-20 data-[state=active]:text-[var(--dynamic-primary)] rounded-lg"
             >
               Pro Tips
             </TabsTrigger>
           </TabsList>
           <TabsContent value="features" className="mt-4">
-            <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm rounded-xl">
-              <CardContent className="p-6">
+            <MaterialCard variant="glass">
+              <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-3 rounded-lg">
-                      <Scissors className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-3">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-3 rounded-lg">
+                      <Scissors className="h-5 w-5 text-[var(--dynamic-primary)]" />
                     </div>
                     <div>
-                      <h3 className="font-medium mb-1 text-slate-800 dark:text-slate-100">Precision Cutting</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-slate-100">Precision Cutting</h3>
+                      <p className="body-small text-slate-600 dark:text-slate-400">
                         Cut your audio with millisecond precision
                       </p>
                     </div>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-3 rounded-lg">
-                      <Sparkles className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-3">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-3 rounded-lg">
+                      <Sparkles className="h-5 w-5 text-[var(--dynamic-primary)]" />
                     </div>
                     <div>
-                      <h3 className="font-medium mb-1 text-slate-800 dark:text-slate-100">Audio Effects</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-slate-100">Audio Effects</h3>
+                      <p className="body-small text-slate-600 dark:text-slate-400">
                         Apply professional effects to your audio
                       </p>
                     </div>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-3 rounded-lg">
-                      <Layers className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-3">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-3 rounded-lg">
+                      <Layers className="h-5 w-5 text-[var(--dynamic-primary)]" />
                     </div>
                     <div>
-                      <h3 className="font-medium mb-1 text-slate-800 dark:text-slate-100">Batch Processing</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">Process multiple audio files at once</p>
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-slate-100">Batch Processing</h3>
+                      <p className="body-small text-slate-600 dark:text-slate-400">
+                        Process multiple audio files at once
+                      </p>
                     </div>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-3 rounded-lg">
-                      <Clock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-3">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-3 rounded-lg">
+                      <Clock className="h-5 w-5 text-[var(--dynamic-primary)]" />
                     </div>
                     <div>
-                      <h3 className="font-medium mb-1 text-slate-800 dark:text-slate-100">Precise Time Control</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-slate-100">Precise Time Control</h3>
+                      <p className="body-small text-slate-600 dark:text-slate-400">
                         Fine-tune your cuts with millisecond accuracy
                       </p>
                     </div>
-                  </div>
+                  </MaterialCard>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </MaterialCard>
           </TabsContent>
 
           <TabsContent value="shortcuts" className="mt-4">
-            <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm rounded-xl">
-              <CardContent className="p-6">
+            <MaterialCard variant="glass">
+              <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <span className="text-sm text-slate-700 dark:text-slate-300">Play/Pause</span>
+                  <MaterialCard variant="glass" padding="sm" className="flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Play/Pause</span>
                     <Badge
                       variant="outline"
-                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800"
+                      className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 text-[var(--dynamic-primary)] border-[var(--dynamic-primary)] border-opacity-30 dark:border-opacity-30"
                     >
                       Space
                     </Badge>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <span className="text-sm text-slate-700 dark:text-slate-300">Skip Forward</span>
+                  <MaterialCard variant="glass" padding="sm" className="flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Skip Forward</span>
                     <Badge
                       variant="outline"
-                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800"
+                      className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 text-[var(--dynamic-primary)] border-[var(--dynamic-primary)] border-opacity-30 dark:border-opacity-30"
                     >
                       →
                     </Badge>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <span className="text-sm text-slate-700 dark:text-slate-300">Skip Backward</span>
+                  <MaterialCard variant="glass" padding="sm" className="flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Skip Backward</span>
                     <Badge
                       variant="outline"
-                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800"
+                      className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 text-[var(--dynamic-primary)] border-[var(--dynamic-primary)] border-opacity-30 dark:border-opacity-30"
                     >
                       ←
                     </Badge>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <span className="text-sm text-slate-700 dark:text-slate-300">Set Start Point</span>
+                  <MaterialCard variant="glass" padding="sm" className="flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Set Start Point</span>
                     <Badge
                       variant="outline"
-                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800"
+                      className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 text-[var(--dynamic-primary)] border-[var(--dynamic-primary)] border-opacity-30 dark:border-opacity-30"
                     >
                       S
                     </Badge>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <span className="text-sm text-slate-700 dark:text-slate-300">Set End Point</span>
+                  <MaterialCard variant="glass" padding="sm" className="flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Set End Point</span>
                     <Badge
                       variant="outline"
-                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800"
+                      className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 text-[var(--dynamic-primary)] border-[var(--dynamic-primary)] border-opacity-30 dark:border-opacity-30"
                     >
                       E
                     </Badge>
-                  </div>
+                  </MaterialCard>
 
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <span className="text-sm text-slate-700 dark:text-slate-300">Export</span>
+                  <MaterialCard variant="glass" padding="sm" className="flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Export</span>
                     <Badge
                       variant="outline"
-                      className="bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800"
+                      className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 text-[var(--dynamic-primary)] border-[var(--dynamic-primary)] border-opacity-30 dark:border-opacity-30"
                     >
                       Ctrl+E
                     </Badge>
-                  </div>
+                  </MaterialCard>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </MaterialCard>
           </TabsContent>
 
           <TabsContent value="tips" className="mt-4">
-            <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm rounded-xl">
-              <CardContent className="p-6">
+            <MaterialCard variant="glass">
+              <div className="p-6">
                 <ul className="space-y-3">
-                  <li className="flex items-start gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-violet-600 dark:bg-violet-400"></div>
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-2">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-[var(--dynamic-primary)]"></div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
                       Use the normalize feature to ensure consistent volume levels
                     </p>
-                  </li>
+                  </MaterialCard>
 
-                  <li className="flex items-start gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-violet-600 dark:bg-violet-400"></div>
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-2">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-[var(--dynamic-primary)]"></div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
                       Add fade in/out to avoid abrupt starts and endings
                     </p>
-                  </li>
+                  </MaterialCard>
 
-                  <li className="flex items-start gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-violet-600 dark:bg-violet-400"></div>
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-2">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-[var(--dynamic-primary)]"></div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
                       Save your project to continue editing later
                     </p>
-                  </li>
+                  </MaterialCard>
 
-                  <li className="flex items-start gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-violet-600 dark:bg-violet-400"></div>
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-2">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-[var(--dynamic-primary)]"></div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
                       Use WAV format for highest quality, MP3 for smaller file size
                     </p>
-                  </li>
+                  </MaterialCard>
 
-                  <li className="flex items-start gap-2 p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-violet-200 dark:hover:border-violet-700 transition-colors bg-white dark:bg-slate-800">
-                    <div className="bg-violet-50 dark:bg-violet-900/30 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-violet-600 dark:bg-violet-400"></div>
+                  <MaterialCard variant="glass" padding="sm" className="flex items-start gap-2">
+                    <div className="bg-[var(--dynamic-primary)] bg-opacity-10 dark:bg-opacity-20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-[var(--dynamic-primary)]"></div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300">
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
                       Use keyboard shortcuts for faster and more efficient editing
                     </p>
-                  </li>
+                  </MaterialCard>
                 </ul>
-              </CardContent>
-            </Card>
+              </div>
+            </MaterialCard>
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6">
+        <MaterialButton
+          variant="fab"
+          size="icon-lg"
+          className="bg-gradient-to-r from-[var(--dynamic-primary)] to-[var(--dynamic-secondary)] shadow-lg hover:shadow-xl"
+          onClick={() => setShowHelpPopup(true)}
+        >
+          <HelpCircle className="h-6 w-6" />
+        </MaterialButton>
+      </div>
     </div>
   )
 }
