@@ -11,13 +11,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "material-button",
-        outline: "material-button-outline",
-        ghost: "bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100",
-        link: "text-slate-900 dark:text-slate-100 underline-offset-4 hover:underline",
-        fab: "material-fab",
+        default: "btn-primary",
+        outline: "btn-outline",
+        ghost: "btn-ghost",
+        link: "text-purple-600 dark:text-purple-400 underline-offset-4 hover:underline",
+        fab: "btn-fab",
         tonal:
-          "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700",
+          "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-600",
       },
       size: {
         default: "h-12 px-6 py-3",

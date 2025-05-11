@@ -90,9 +90,7 @@ export function AudioVisualizer({
 
         // Set color based on position
         if (isCurrentPosition) {
-          // Pulsing effect for current position
-          const pulseIntensity = Math.sin(Date.now() * 0.01) * 0.2 + 0.8
-          ctx.fillStyle = `rgba(139, 92, 246, ${pulseIntensity})`
+          ctx.fillStyle = "rgba(139, 92, 246, 0.9)"
         } else if (isInRange) {
           ctx.fillStyle = "rgba(139, 92, 246, 0.7)"
         } else {
@@ -116,14 +114,6 @@ export function AudioVisualizer({
         ctx.quadraticCurveTo(x, barY, x + radius, barY)
         ctx.closePath()
         ctx.fill()
-
-        // Add glow effect for current position
-        if (isCurrentPosition) {
-          ctx.shadowColor = "rgba(139, 92, 246, 0.6)"
-          ctx.shadowBlur = 10
-          ctx.fill()
-          ctx.shadowBlur = 0
-        }
       })
 
       // Draw playhead
@@ -143,7 +133,7 @@ export function AudioVisualizer({
       ctx.beginPath()
       ctx.moveTo(startX, 0)
       ctx.lineTo(startX, height)
-      ctx.strokeStyle = "rgba(var(--dynamic-tertiary), 0.6)"
+      ctx.strokeStyle = "rgba(147, 51, 234, 0.6)"
       ctx.lineWidth = 2
       ctx.stroke()
 
@@ -151,12 +141,12 @@ export function AudioVisualizer({
       ctx.beginPath()
       ctx.moveTo(endX, 0)
       ctx.lineTo(endX, height)
-      ctx.strokeStyle = "rgba(var(--dynamic-tertiary), 0.6)"
+      ctx.strokeStyle = "rgba(147, 51, 234, 0.6)"
       ctx.lineWidth = 2
       ctx.stroke()
 
       // Selected range overlay
-      ctx.fillStyle = "rgba(var(--dynamic-primary), 0.1)"
+      ctx.fillStyle = "rgba(147, 51, 234, 0.1)"
       ctx.fillRect(startX, 0, endX - startX, height)
 
       // Draw time markers
@@ -200,29 +190,10 @@ export function AudioVisualizer({
     }
   }, [data, currentTime, duration, startTime, endTime, isPlaying, zoomLevel])
 
-  // Update animation when isPlaying changes
+  // Update animation when isPlaying changes - REMOVED CIRCLING ANIMATION
   useEffect(() => {
     if (isPlaying) {
       const animate = () => {
-        const canvas = canvasRef.current
-        const container = containerRef.current
-        if (!canvas || !container) return
-
-        const ctx = canvas.getContext("2d")
-        if (!ctx) return
-
-        const { width, height } = container.getBoundingClientRect()
-
-        // Add ripple effect when playing
-        const playheadX = (currentTime / duration) * width
-        const rippleRadius = (Date.now() % 1000) / 250
-
-        ctx.beginPath()
-        ctx.arc(playheadX, height / 2, rippleRadius * 20, 0, Math.PI * 2)
-        ctx.strokeStyle = "rgba(var(--dynamic-tertiary), " + (1 - rippleRadius) * 0.5 + ")"
-        ctx.lineWidth = 2
-        ctx.stroke()
-
         animationRef.current = requestAnimationFrame(animate)
       }
 

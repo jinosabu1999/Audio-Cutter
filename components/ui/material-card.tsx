@@ -6,15 +6,14 @@ import { forwardRef } from "react"
 import { cn } from "@/lib/utils"
 import { cva, type VariantProps } from "class-variance-authority"
 
-const cardVariants = cva("rounded-3xl overflow-hidden transition-all duration-300", {
+const cardVariants = cva("rounded-xl overflow-hidden transition-all duration-300", {
   variants: {
     variant: {
-      default: "material-card bg-white dark:bg-slate-800",
-      elevated: "material-card bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl",
+      default: "card",
+      elevated: "card shadow-lg hover:shadow-xl",
       filled: "bg-slate-100 dark:bg-slate-700",
       outlined: "border-2 border-slate-200 dark:border-slate-700",
       glass: "glass-effect",
-      neumorphic: "neumorphic-light dark:neumorphic-dark",
     },
     padding: {
       none: "p-0",
@@ -23,11 +22,11 @@ const cardVariants = cva("rounded-3xl overflow-hidden transition-all duration-30
       lg: "p-8",
     },
     shape: {
-      default: "rounded-3xl",
+      default: "rounded-xl",
       circle: "rounded-full",
-      blob1: "shape-blob-1",
-      blob2: "shape-blob-2",
-      blob3: "shape-blob-3",
+      blob1: "rounded-[71%_29%_41%_59%/59%_43%_57%_41%]",
+      blob2: "rounded-[37%_63%_56%_44%/49%_56%_44%_51%]",
+      blob3: "rounded-[63%_37%_37%_63%/43%_37%_63%_57%]",
     },
   },
   defaultVariants: {
