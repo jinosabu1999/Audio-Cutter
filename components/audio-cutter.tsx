@@ -34,6 +34,11 @@ import {
   Music,
   Minus,
   Plus,
+  Keyboard,
+  Settings,
+  Save,
+  FileText,
+  BarChart2,
 } from "lucide-react"
 import { formatTime, parseTimeInput } from "@/lib/time-utils"
 import { cn } from "@/lib/utils"
@@ -50,6 +55,15 @@ interface SavedProject {
   startTime: number
   endTime: number
   audioUrl: string
+}
+
+interface ExportPreset {
+  id: string
+  name: string
+  format: string
+  quality: string
+  normalize: boolean
+  fadeInOut: boolean
 }
 
 export default function AudioCutter() {
@@ -71,6 +85,7 @@ export default function AudioCutter() {
   const [isDragging, setIsDragging] = useState<boolean>(false)
   const [showEffects, setShowEffects] = useState<boolean>(false)
   const [showHelpPopup, setShowHelpPopup] = useState<boolean>(false)
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState<boolean>(false)
   const [cutCompleted, setCutCompleted] = useState<boolean>(false)
   const [cutAudioUrl, setCutAudioUrl] = useState<string | null>(null)
   const [projectName, setProjectName] = useState<string>("")
@@ -79,10 +94,39 @@ export default function AudioCutter() {
   const [activeTab, setActiveTab] = useState<string>("editor")
   const [visualizerData, setVisualizerData] = useState<number[]>([])
   const [zoomLevel, setZoomLevel] = useState<number>(1)
-  const [loopPlayback, setLoopPlayback] = useState<boolean>(false)
   const [showBookmarks, setShowBookmarks] = useState<boolean>(false)
   const [batchFiles, setBatchFiles] = useState<File[]>([])
   const [showBatchProcessing, setShowBatchProcessing] = useState<boolean>(false)
+  const [showExportPresets, setShowExportPresets] = useState<boolean>(false)
+  const [exportPresets, setExportPresets] = useState<ExportPreset[]>([
+    {
+      id: "preset_1",
+      name: "High Quality MP3",
+      format: "mp3",
+      quality: "high",
+      normalize: true,
+      fadeInOut: false,
+    },
+    {
+      id: "preset_2",
+      name: "Podcast Ready",
+      format: "mp3",
+      quality: "medium",
+      normalize: true,
+      fadeInOut: true,
+    },
+    {
+      id: "preset_3",
+      name: "Lossless WAV",
+      format: "wav",
+      quality: "ultra",
+      normalize: false,
+      fadeInOut: false,
+    },
+  ])
+  const [selectedPreset, setSelectedPreset] = useState<string>("")
+  const [normalize, setNormalize] = useState<boolean>(false)
+  const [fadeInOut, setFadeInOut] = useState<boolean>(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -339,6 +383,19 @@ export default function AudioCutter() {
     }
   }
 
+  // Apply export preset
+  const applyPreset = (presetId: string) => {
+    const preset = exportPresets.find((p) => p.id === presetId)
+    if (preset) {
+      setExportFormat(preset.format)
+      setExportQuality(preset.quality)
+      setNormalize(preset.normalize)
+      setFadeInOut(preset.fadeInOut)
+      setSelectedPreset(presetId)
+      addToast(`Applied preset: ${preset.name}`, "info")
+    }
+  }
+
   // Export the cut audio
   const exportAudio = async () => {
     if (!file || !audioUrl) return
@@ -380,6 +437,52 @@ export default function AudioCutter() {
         }
       }
 
+      // Apply fade in/out if enabled
+      if (fadeInOut) {
+        const fadeLength = Math.min(sampleRate * 0.5, frameCount / 10) // 0.5 second fade or 10% of audio length
+
+        for (let channel = 0; channel < cutBuffer.numberOfChannels; channel++) {
+          const data = cutBuffer.getChannelData(channel)
+
+          // Fade in
+          for (let i = 0; i < fadeLength; i++) {
+            const fadeInFactor = i / fadeLength
+            data[i] *= fadeInFactor
+          }
+
+          // Fade out
+          for (let i = 0; i < fadeLength; i++) {
+            const fadeOutFactor = 1 - i / fadeLength
+            data[frameCount - 1 - i] *= fadeOutFactor
+          }
+        }
+      }
+
+      // Apply normalization if enabled
+      if (normalize) {
+        let maxValue = 0
+
+        // Find the maximum value in the buffer
+        for (let channel = 0; channel < cutBuffer.numberOfChannels; channel++) {
+          const data = cutBuffer.getChannelData(channel)
+          for (let i = 0; i < frameCount; i++) {
+            maxValue = Math.max(maxValue, Math.abs(data[i]))
+          }
+        }
+
+        // Apply normalization if needed
+        if (maxValue > 0 && maxValue < 1) {
+          const normalizationFactor = 0.95 / maxValue // Leave a little headroom
+
+          for (let channel = 0; channel < cutBuffer.numberOfChannels; channel++) {
+            const data = cutBuffer.getChannelData(channel)
+            for (let i = 0; i < frameCount; i++) {
+              data[i] *= normalizationFactor
+            }
+          }
+        }
+      }
+
       // Convert the cut buffer to WAV format
       const offlineContext = new OfflineAudioContext(cutBuffer.numberOfChannels, cutBuffer.length, cutBuffer.sampleRate)
 
@@ -405,7 +508,7 @@ export default function AudioCutter() {
       setCutCompleted(true)
 
       // Create a download link
-      const fileName = `cut_${startTime.toFixed(2)}_${endTime.toFixed(2)}_${file.name.split(".")[0]}.wav`
+      const fileName = `cut_${startTime.toFixed(2)}_${endTime.toFixed(2)}_${file.name.split(".")[0]}.${exportFormat}`
       const a = document.createElement("a")
       a.href = cutUrl
       a.download = fileName
@@ -481,15 +584,10 @@ export default function AudioCutter() {
 
       // Stop or loop playback if we reach the end time
       if (current >= endTime) {
-        if (loopPlayback) {
-          audioRef.current.currentTime = startTime
-          setCurrentTime(startTime)
-        } else {
-          audioRef.current.pause()
-          setIsPlaying(false)
-          audioRef.current.currentTime = endTime
-          setCurrentTime(endTime)
-        }
+        audioRef.current.pause()
+        setIsPlaying(false)
+        audioRef.current.currentTime = endTime
+        setCurrentTime(endTime)
       }
     }
 
@@ -500,7 +598,7 @@ export default function AudioCutter() {
         audioRef.current.removeEventListener("timeupdate", handleTimeUpdate)
       }
     }
-  }, [endTime, loopPlayback, startTime])
+  }, [endTime, isPlaying])
 
   // Clean up audio URL when component unmounts
   useEffect(() => {
@@ -554,6 +652,18 @@ export default function AudioCutter() {
               setEndTime(newEndTime)
               addToast("End point set", "info")
             }
+          }
+          break
+        case "m": // Toggle mute
+          toggleMute()
+          break
+        case "k": // Show keyboard shortcuts
+          setShowKeyboardShortcuts(!showKeyboardShortcuts)
+          break
+        case "c": // Cut and export (with Ctrl)
+          if (e.ctrlKey) {
+            e.preventDefault()
+            exportAudio()
           }
           break
       }
@@ -653,6 +763,64 @@ export default function AudioCutter() {
         </div>
       )}
 
+      {/* Keyboard Shortcuts Popup */}
+      {showKeyboardShortcuts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="card max-w-md w-full mx-4 animate-slide-up">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="title-large flex items-center text-slate-800 dark:text-white">
+                  <Keyboard className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" />
+                  Keyboard Shortcuts
+                </h3>
+                <button
+                  className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  onClick={() => setShowKeyboardShortcuts(false)}
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">Space</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Play/Pause</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">←/→</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Skip 5 seconds</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">S</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Set start point</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">E</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Set end point</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">M</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Toggle mute</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">K</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Show shortcuts</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">Ctrl+C</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Cut & Export</span>
+                  </div>
+                </div>
+              </div>
+              <button className="btn-primary w-full mt-6" onClick={() => setShowKeyboardShortcuts(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
@@ -694,7 +862,11 @@ export default function AudioCutter() {
                   <p className="body-large text-slate-600 dark:text-slate-300 mb-6 max-w-md mx-auto">
                     Drag and drop your audio file here or click to browse
                   </p>
-                  <button className="btn-primary" onClick={() => document.getElementById("audio-upload")?.click()}>
+                  <button
+                    className="btn-primary relative overflow-hidden group animate-pulse hover:animate-none"
+                    onClick={() => document.getElementById("audio-upload")?.click()}
+                  >
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-600/0 via-purple-600/30 to-purple-600/0 group-hover:via-purple-600/50 -translate-x-full animate-shimmer group-hover:animate-none"></span>
                     <Upload className="mr-2 h-5 w-5" />
                     Select Audio File
                   </button>
@@ -807,26 +979,19 @@ export default function AudioCutter() {
 
                   {/* Controls */}
                   <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
-                    <button className="btn-fab w-16 h-16 animate-breathe" onClick={togglePlayPause}>
-                      {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10" />}
+                    <button className="btn-primary rounded-full p-3" onClick={togglePlayPause}>
+                      {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
                     </button>
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                      onClick={toggleMute}
-                    >
-                      {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                    </Button>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Switch id="loop-playback" checked={loopPlayback} onCheckedChange={setLoopPlayback} />
-                      <Label
-                        htmlFor="loop-playback"
-                        className="text-sm cursor-pointer text-slate-700 dark:text-slate-300"
+                    <div className="flex flex-col items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                        onClick={toggleMute}
                       >
-                        Loop playback
-                      </Label>
+                        {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+                      </Button>
                     </div>
                   </div>
 
@@ -926,6 +1091,14 @@ export default function AudioCutter() {
                         <Layers className="h-4 w-4" />
                         {showBatchProcessing ? "Hide Batch Processing" : "Batch Processing"}
                       </button>
+
+                      <button
+                        className="btn-outline text-sm flex items-center gap-2"
+                        onClick={() => setShowExportPresets(!showExportPresets)}
+                      >
+                        <Settings className="h-4 w-4" />
+                        {showExportPresets ? "Hide Export Presets" : "Export Presets"}
+                      </button>
                     </div>
 
                     {showEffects && (
@@ -987,13 +1160,64 @@ export default function AudioCutter() {
                             <Label htmlFor="normalize" className="text-sm text-slate-700 dark:text-slate-300">
                               Normalize Audio
                             </Label>
-                            <Switch id="normalize" />
+                            <Switch id="normalize" checked={normalize} onCheckedChange={setNormalize} />
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <Label htmlFor="fade" className="text-sm text-slate-700 dark:text-slate-300">
                               Add Fade In/Out
                             </Label>
-                            <Switch id="fade" />
+                            <Switch id="fade" checked={fadeInOut} onCheckedChange={setFadeInOut} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {showExportPresets && (
+                      <div className="card mt-4 p-6">
+                        <h3 className="text-lg font-medium mb-4 text-slate-800 dark:text-white">Export Presets</h3>
+
+                        <div className="space-y-4">
+                          <p className="text-sm text-slate-600 dark:text-slate-300">
+                            Select a preset to quickly apply export settings.
+                          </p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {exportPresets.map((preset) => (
+                              <div
+                                key={preset.id}
+                                className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                  selectedPreset === preset.id
+                                    ? "border-purple-500 dark:border-purple-400 bg-purple-50 dark:bg-purple-900/20"
+                                    : "border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-700"
+                                }`}
+                                onClick={() => applyPreset(preset.id)}
+                              >
+                                <div className="font-medium text-slate-800 dark:text-white">{preset.name}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                  {preset.format.toUpperCase()} •{" "}
+                                  {preset.quality === "ultra"
+                                    ? "Ultra"
+                                    : preset.quality === "high"
+                                      ? "High"
+                                      : preset.quality === "medium"
+                                        ? "Medium"
+                                        : "Low"}{" "}
+                                  Quality
+                                </div>
+                                <div className="flex gap-2 mt-2">
+                                  {preset.normalize && (
+                                    <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded">
+                                      Normalize
+                                    </span>
+                                  )}
+                                  {preset.fadeInOut && (
+                                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-2 py-0.5 rounded">
+                                      Fade In/Out
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -1109,9 +1333,27 @@ export default function AudioCutter() {
                     </button>
 
                     <button className="btn-outline" onClick={saveProject}>
-                      <Bookmark className="h-5 w-5 mr-2" />
+                      <Save className="h-5 w-5 mr-2" />
                       Save Project
                     </button>
+                  </div>
+
+                  {/* Audio Stats */}
+                  <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                    <div className="flex flex-wrap justify-between items-center">
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                        <FileText className="h-4 w-4" />
+                        <span>Format: {file.type.split("/")[1].toUpperCase()}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                        <Clock className="h-4 w-4" />
+                        <span>Duration: {formatTime(duration)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                        <BarChart2 className="h-4 w-4" />
+                        <span>Selection: {formatTime(endTime - startTime)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1292,16 +1534,6 @@ export default function AudioCutter() {
                       variant="outline"
                       className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
                     >
-                      ←
-                    </Badge>
-                  </div>
-
-                  <div className="card p-4 flex justify-between items-center">
-                    <span className="body-medium text-slate-700 dark:text-slate-300">Set Start Point</span>
-                    <Badge
-                      variant="outline"
-                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
-                    >
                       S
                     </Badge>
                   </div>
@@ -1313,16 +1545,6 @@ export default function AudioCutter() {
                       className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
                     >
                       E
-                    </Badge>
-                  </div>
-
-                  <div className="card p-4 flex justify-between items-center">
-                    <span className="body-medium text-slate-700 dark:text-slate-300">Export</span>
-                    <Badge
-                      variant="outline"
-                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
-                    >
-                      Ctrl+E
                     </Badge>
                   </div>
                 </div>
@@ -1389,9 +1611,9 @@ export default function AudioCutter() {
       <div className="fixed bottom-6 right-6">
         <button
           className="btn-fab bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 dark:text-black shadow-lg hover:shadow-xl"
-          onClick={() => setShowHelpPopup(true)}
+          onClick={() => setShowKeyboardShortcuts(true)}
         >
-          <HelpCircle className="h-6 w-6" />
+          <Keyboard className="h-6 w-6" />
         </button>
       </div>
     </div>

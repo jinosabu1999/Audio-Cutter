@@ -289,3 +289,14 @@
 .dark .gradient-text {
   background-image: linear-gradient(to right, rgb(192, 132, 252), rgb(216, 180, 254));
 }
+
+/* Add the shimmer animation keyframes at the end of the file */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
