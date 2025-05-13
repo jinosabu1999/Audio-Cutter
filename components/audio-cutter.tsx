@@ -1067,9 +1067,9 @@ export default function AudioCutter() {
 
                   {/* Advanced Options */}
                   <div className="mb-6">
-                    <div className="flex flex-wrap items-center justify-start gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
-                        className="btn-outline text-sm flex items-center gap-2"
+                        className="btn-outline text-sm flex items-center justify-center gap-2"
                         onClick={() => setShowEffects(!showEffects)}
                       >
                         <Wand2 className="h-4 w-4" />
@@ -1077,7 +1077,7 @@ export default function AudioCutter() {
                       </button>
 
                       <button
-                        className="btn-outline text-sm flex items-center gap-2"
+                        className="btn-outline text-sm flex items-center justify-center gap-2"
                         onClick={() => setShowBookmarks(!showBookmarks)}
                       >
                         <Bookmark className="h-4 w-4" />
@@ -1085,7 +1085,7 @@ export default function AudioCutter() {
                       </button>
 
                       <button
-                        className="btn-outline text-sm flex items-center gap-2"
+                        className="btn-outline text-sm flex items-center justify-center gap-2"
                         onClick={() => setShowBatchProcessing(!showBatchProcessing)}
                       >
                         <Layers className="h-4 w-4" />
@@ -1093,7 +1093,7 @@ export default function AudioCutter() {
                       </button>
 
                       <button
-                        className="btn-outline text-sm flex items-center gap-2"
+                        className="btn-outline text-sm flex items-center justify-center gap-2"
                         onClick={() => setShowExportPresets(!showExportPresets)}
                       >
                         <Settings className="h-4 w-4" />
