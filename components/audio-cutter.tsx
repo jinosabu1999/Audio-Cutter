@@ -127,6 +127,8 @@ export default function AudioCutter() {
   const [selectedPreset, setSelectedPreset] = useState<string>("")
   const [normalize, setNormalize] = useState<boolean>(false)
   const [fadeInOut, setFadeInOut] = useState<boolean>(false)
+  const [snapToGrid, setSnapToGrid] = useState<boolean>(false)
+  const [gridInterval, setGridInterval] = useState<number>(5) // 5 seconds
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -226,15 +228,43 @@ export default function AudioCutter() {
     if (isPlaying) {
       audioRef.current.pause()
     } else {
-      // If current time is outside the selected range, reset to start time
-      if (currentTime < startTime || currentTime >= endTime) {
-        audioRef.current.currentTime = startTime
-        setCurrentTime(startTime)
-      }
+      // Always reset to start time when play is clicked
+      audioRef.current.currentTime = startTime
+      setCurrentTime(startTime)
       audioRef.current.play()
     }
 
     setIsPlaying(!isPlaying)
+  }
+
+  // Add this function after togglePlayPause
+  const previewSelection = () => {
+    if (!audioRef.current) return
+
+    // Stop any current playback
+    if (isPlaying) {
+      audioRef.current.pause()
+      setIsPlaying(false)
+    }
+
+    // Set to start time
+    audioRef.current.currentTime = startTime
+    setCurrentTime(startTime)
+
+    // Play for 3 seconds or until end time, whichever comes first
+    const previewDuration = Math.min(3, endTime - startTime)
+    audioRef.current.play()
+    setIsPlaying(true)
+
+    // Stop after preview duration
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        setIsPlaying(false)
+      }
+    }, previewDuration * 1000)
+
+    addToast(`Previewing ${previewDuration.toFixed(1)} seconds`, "info")
   }
 
   // Handle time input changes
@@ -306,13 +336,44 @@ export default function AudioCutter() {
     }
   }
 
+  const snapTimeToGrid = (time: number): number => {
+    if (!snapToGrid) return time
+    const snappedTime = Math.round(time / gridInterval) * gridInterval
+    return Math.max(0, Math.min(duration, snappedTime))
+  }
+
   // Update current time manually
-  const updateCurrentTime = (newTime: number) => {
+  const updateCurrentTime = (newTime: number, updateType?: "startTime" | "endTime") => {
     if (!audioRef.current) return
 
-    const clampedTime = Math.max(0, Math.min(newTime, duration))
-    setCurrentTime(clampedTime)
-    audioRef.current.currentTime = clampedTime
+    let clampedTime = Math.max(0, Math.min(newTime, duration))
+
+    // Apply snap to grid if enabled
+    if (snapToGrid && (updateType === "startTime" || updateType === "endTime")) {
+      clampedTime = snapTimeToGrid(clampedTime)
+    }
+
+    if (updateType === "startTime") {
+      // Update start time
+      setStartTime(clampedTime)
+      // If current time is before new start time, update it too
+      if (currentTime < clampedTime) {
+        setCurrentTime(clampedTime)
+        audioRef.current.currentTime = clampedTime
+      }
+    } else if (updateType === "endTime") {
+      // Update end time
+      setEndTime(clampedTime)
+      // If current time is after new end time, update it too
+      if (currentTime > clampedTime) {
+        setCurrentTime(clampedTime)
+        audioRef.current.currentTime = clampedTime
+      }
+    } else {
+      // Update current time (playhead)
+      setCurrentTime(clampedTime)
+      audioRef.current.currentTime = clampedTime
+    }
   }
 
   // Toggle mute
@@ -666,6 +727,28 @@ export default function AudioCutter() {
             exportAudio()
           }
           break
+        case "=": // Plus key
+        case "+":
+          e.preventDefault()
+          setZoomLevel(Math.min(4, zoomLevel + 0.5))
+          break
+        case "-": // Minus key
+          e.preventDefault()
+          setZoomLevel(Math.max(1, zoomLevel - 0.5))
+          break
+        case "a": // Set start to beginning
+          setStartTime(0)
+          addToast("Start time set to beginning", "info")
+          break
+        case "z": // Set end to end
+          setEndTime(duration)
+          addToast("End time set to end", "info")
+          break
+        case "x": // Select all
+          setStartTime(0)
+          setEndTime(duration)
+          addToast("Selected entire audio", "info")
+          break
       }
     }
 
@@ -674,7 +757,7 @@ export default function AudioCutter() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [currentTime, startTime, endTime, file])
+  }, [currentTime, startTime, endTime, file, duration, zoomLevel])
 
   const jumpToBookmark = (time: number) => {
     if (audioRef.current) {
@@ -811,6 +894,22 @@ export default function AudioCutter() {
                     <span className="font-mono text-purple-600 dark:text-purple-400">Ctrl+C</span>
                     <span className="block text-sm text-slate-600 dark:text-slate-300">Cut & Export</span>
                   </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">A</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Set start to beginning</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">Z</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Set end to end</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">X</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Select all audio</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                    <span className="font-mono text-purple-600 dark:text-purple-400">+/-</span>
+                    <span className="block text-sm text-slate-600 dark:text-slate-300">Zoom in/out</span>
+                  </div>
                 </div>
               </div>
               <button className="btn-primary w-full mt-6" onClick={() => setShowKeyboardShortcuts(false)}>
@@ -945,7 +1044,7 @@ export default function AudioCutter() {
                         duration={duration}
                         startTime={startTime}
                         endTime={endTime}
-                        onTimeUpdate={updateCurrentTime}
+                        onTimeUpdate={(time, updateType) => updateCurrentTime(time, updateType)}
                         isPlaying={isPlaying}
                         zoomLevel={zoomLevel}
                       />
@@ -983,6 +1082,16 @@ export default function AudioCutter() {
                       {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
                     </button>
 
+                    <button
+                      className="btn-outline rounded-full p-3"
+                      onClick={previewSelection}
+                      disabled={!file || isPlaying}
+                      title="Preview 3 seconds"
+                    >
+                      <Play className="h-4 w-4 mr-1" />
+                      Preview
+                    </button>
+
                     <div className="flex flex-col items-center gap-1">
                       <Button
                         variant="ghost"
@@ -995,64 +1104,247 @@ export default function AudioCutter() {
                     </div>
                   </div>
 
-                  {/* Cutting Controls */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="card space-y-2 p-6 bg-gradient-to-br from-purple-500/30 to-blue-500/30 dark:from-purple-400/20 dark:to-blue-400/20 rounded-[71%_29%_41%_59%/59%_43%_57%_41%]">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mr-3 shadow-md">
-                          <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  {/* Modern Time Editor Controls */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium mb-4 text-slate-800 dark:text-white text-center">
+                      Edit Time Range
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Start Time Editor */}
+                      <div className="card p-4 bg-gradient-to-r from-purple-500/10 to-purple-500/20 dark:from-purple-400/10 dark:to-purple-400/20 rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-purple-600 dark:bg-purple-400 flex items-center justify-center mr-2">
+                              <Clock className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="font-medium text-slate-800 dark:text-white">Start Time</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400"
+                            onClick={() => setShowHelpPopup(true)}
+                          >
+                            <HelpCircle className="h-3 w-3" />
+                          </Button>
                         </div>
-                        <div>
-                          <Label htmlFor="start-time" className="text-sm font-medium text-slate-800 dark:text-white">
-                            Start Time
-                          </Label>
-                          <p className="text-xs text-slate-600 dark:text-slate-300">Set where to begin cutting</p>
+
+                        <div className="flex items-center mt-3">
+                          <button
+                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                            onClick={() => {
+                              const newTime = Math.max(0, startTime - 1)
+                              setStartTime(newTime)
+                              if (currentTime < newTime) {
+                                setCurrentTime(newTime)
+                                if (audioRef.current) {
+                                  audioRef.current.currentTime = newTime
+                                }
+                              }
+                            }}
+                          >
+                            <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                          </button>
+
+                          <div className="relative flex-1 mx-2">
+                            <Input
+                              id="start-time"
+                              ref={startTimeInputRef}
+                              value={formatTime(startTime)}
+                              onChange={handleStartTimeChange}
+                              className="text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-purple-500/50 dark:border-purple-400/50 rounded-lg text-slate-900 dark:text-white"
+                              inputMode="decimal"
+                            />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                              <Zap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                          </div>
+
+                          <button
+                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                            onClick={() => {
+                              const newTime = Math.min(endTime - 0.1, startTime + 1)
+                              setStartTime(newTime)
+                              if (currentTime < newTime) {
+                                setCurrentTime(newTime)
+                                if (audioRef.current) {
+                                  audioRef.current.currentTime = newTime
+                                }
+                              }
+                            }}
+                          >
+                            <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                          </button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 ml-auto text-slate-400 hover:text-purple-600 dark:hover:text-purple-400"
-                          onClick={() => setShowHelpPopup(true)}
-                        >
-                          <HelpCircle className="h-3 w-3" />
-                        </Button>
+
+                        <div className="flex justify-between mt-2">
+                          <button
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              setStartTime(0)
+                              setCurrentTime(0)
+                              if (audioRef.current) {
+                                audioRef.current.currentTime = 0
+                              }
+                            }}
+                          >
+                            Start
+                          </button>
+
+                          <button
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              if (audioRef.current) {
+                                const newStartTime = currentTime
+                                if (newStartTime < endTime) {
+                                  setStartTime(newStartTime)
+                                  addToast("Start point set", "info")
+                                }
+                              }
+                            }}
+                          >
+                            Set to Current
+                          </button>
+                        </div>
                       </div>
-                      <div className="relative">
-                        <Input
-                          id="start-time"
-                          ref={startTimeInputRef}
-                          value={formatTime(startTime)}
-                          onChange={handleStartTimeChange}
-                          className="time-input"
-                        />
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5">
-                          <Zap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+
+                      {/* End Time Editor */}
+                      <div className="card p-4 bg-gradient-to-r from-blue-500/10 to-blue-500/20 dark:from-blue-400/10 dark:to-blue-400/20 rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 dark:bg-blue-400 flex items-center justify-center mr-2">
+                              <Clock className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="font-medium text-slate-800 dark:text-white">End Time</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center mt-3">
+                          <button
+                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                            onClick={() => {
+                              const newTime = Math.max(startTime + 0.1, endTime - 1)
+                              setEndTime(newTime)
+                              if (currentTime > newTime) {
+                                setCurrentTime(newTime)
+                                if (audioRef.current) {
+                                  audioRef.current.currentTime = newTime
+                                }
+                              }
+                            }}
+                          >
+                            <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                          </button>
+
+                          <div className="relative flex-1 mx-2">
+                            <Input
+                              id="end-time"
+                              ref={endTimeInputRef}
+                              value={formatTime(endTime)}
+                              onChange={handleEndTimeChange}
+                              className="text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-blue-500/50 dark:border-blue-400/50 rounded-lg text-slate-900 dark:text-white"
+                              inputMode="decimal"
+                            />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                              <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                          </div>
+
+                          <button
+                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                            onClick={() => {
+                              const newTime = Math.min(duration, endTime + 1)
+                              setEndTime(newTime)
+                            }}
+                          >
+                            <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                          </button>
+                        </div>
+
+                        <div className="flex justify-between mt-2">
+                          <button
+                            className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              if (audioRef.current) {
+                                const newEndTime = currentTime
+                                if (newEndTime > startTime) {
+                                  setEndTime(newEndTime)
+                                  addToast("End point set", "info")
+                                }
+                              }
+                            }}
+                          >
+                            Set to Current
+                          </button>
+
+                          <button
+                            className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              setEndTime(duration)
+                            }}
+                          >
+                            End
+                          </button>
                         </div>
                       </div>
                     </div>
 
-                    <div className="card space-y-2 p-6 bg-gradient-to-br from-blue-500/30 to-purple-500/30 dark:from-blue-400/20 dark:to-purple-400/20 rounded-[37%_63%_56%_44%/49%_56%_44%_51%]">
+                    {/* Duration Display */}
+                    <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mr-3 shadow-md">
-                          <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <Label htmlFor="end-time" className="text-sm font-medium text-slate-800 dark:text-white">
-                            End Time
-                          </Label>
-                          <p className="text-xs text-slate-600 dark:text-slate-300">Set where to end cutting</p>
-                        </div>
+                        <Clock className="h-4 w-4 mr-2 text-purple-600 dark:text-purple-400" />
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Selection Duration:
+                        </span>
+                        <span className="ml-2 font-mono text-lg font-bold text-slate-900 dark:text-white">
+                          {formatTime(endTime - startTime)}
+                        </span>
                       </div>
-                      <div className="relative">
-                        <Input
-                          id="end-time"
-                          ref={endTimeInputRef}
-                          value={formatTime(endTime)}
-                          onChange={handleEndTimeChange}
-                          className="time-input"
-                        />
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-5 h-5">
-                          <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    {/* Quick Selection Presets */}
+                    <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Quick Selection:</span>
+                        <div className="flex gap-2">
+                          <button
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              setStartTime(0)
+                              setEndTime(duration)
+                            }}
+                          >
+                            All
+                          </button>
+                          <button
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              setStartTime(0)
+                              setEndTime(Math.min(duration, 30))
+                            }}
+                          >
+                            First 30s
+                          </button>
+                          <button
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              const newStart = Math.max(0, duration - 30)
+                              setStartTime(newStart)
+                              setEndTime(duration)
+                            }}
+                          >
+                            Last 30s
+                          </button>
+                          <button
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            onClick={() => {
+                              const middle = duration / 2
+                              setStartTime(Math.max(0, middle - 15))
+                              setEndTime(Math.min(duration, middle + 15))
+                            }}
+                          >
+                            Middle 30s
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1222,6 +1514,32 @@ export default function AudioCutter() {
                         </div>
                       </div>
                     )}
+                    <div className="flex items-center justify-between mt-2">
+                      <Label htmlFor="snap" className="text-sm text-slate-700 dark:text-slate-300">
+                        Snap to Grid ({gridInterval}s)
+                      </Label>
+                      <Switch id="snap" checked={snapToGrid} onCheckedChange={setSnapToGrid} />
+                    </div>
+                    <div className="mt-2">
+                      <Label htmlFor="gridInterval" className="text-sm text-slate-700 dark:text-slate-300 mb-1 block">
+                        Grid Interval (seconds)
+                      </Label>
+                      <div className="flex gap-2">
+                        {[1, 5, 10, 15, 30].map((interval) => (
+                          <button
+                            key={interval}
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              gridInterval === interval
+                                ? "bg-purple-500 text-white dark:bg-purple-400 dark:text-black"
+                                : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+                            }`}
+                            onClick={() => setGridInterval(interval)}
+                          >
+                            {interval}s
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
                     {showBookmarks && (
                       <div className="card mt-4 p-6">
@@ -1570,7 +1888,7 @@ export default function AudioCutter() {
                       <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
                     </div>
                     <p className="body-medium text-slate-700 dark:text-slate-300">
-                      Add fade in/out to avoid abrupt starts and endings
+                      Experiment with different export formats to find the best balance between quality and file size
                     </p>
                   </div>
 
@@ -1579,25 +1897,7 @@ export default function AudioCutter() {
                       <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
                     </div>
                     <p className="body-medium text-slate-700 dark:text-slate-300">
-                      Save your project to continue editing later
-                    </p>
-                  </div>
-
-                  <div className="card p-4 flex items-start gap-2">
-                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
-                    </div>
-                    <p className="body-medium text-slate-700 dark:text-slate-300">
-                      Use WAV format for highest quality, MP3 for smaller file size
-                    </p>
-                  </div>
-
-                  <div className="card p-4 flex items-start gap-2">
-                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
-                    </div>
-                    <p className="body-medium text-slate-700 dark:text-slate-300">
-                      Use keyboard shortcuts for faster and more efficient editing
+                      Take advantage of keyboard shortcuts for faster editing
                     </p>
                   </div>
                 </ul>
@@ -1606,16 +1906,6 @@ export default function AudioCutter() {
           </TabsContent>
         </Tabs>
       )}
-
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6">
-        <button
-          className="btn-fab bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 dark:text-black shadow-lg hover:shadow-xl"
-          onClick={() => setShowKeyboardShortcuts(true)}
-        >
-          <Keyboard className="h-6 w-6" />
-        </button>
-      </div>
     </div>
   )
 }
