@@ -127,8 +127,6 @@ export default function AudioCutter() {
   const [selectedPreset, setSelectedPreset] = useState<string>("")
   const [normalize, setNormalize] = useState<boolean>(false)
   const [fadeInOut, setFadeInOut] = useState<boolean>(false)
-  const [snapToGrid, setSnapToGrid] = useState<boolean>(false)
-  const [gridInterval, setGridInterval] = useState<number>(5) // 5 seconds
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -237,121 +235,10 @@ export default function AudioCutter() {
     setIsPlaying(!isPlaying)
   }
 
-  // Add this function after togglePlayPause
-  const previewSelection = () => {
-    if (!audioRef.current) return
-
-    // Stop any current playback
-    if (isPlaying) {
-      audioRef.current.pause()
-      setIsPlaying(false)
-    }
-
-    // Set to start time
-    audioRef.current.currentTime = startTime
-    setCurrentTime(startTime)
-
-    // Play for 3 seconds or until end time, whichever comes first
-    const previewDuration = Math.min(3, endTime - startTime)
-    audioRef.current.play()
-    setIsPlaying(true)
-
-    // Stop after preview duration
-    setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        setIsPlaying(false)
-      }
-    }, previewDuration * 1000)
-
-    addToast(`Previewing ${previewDuration.toFixed(1)} seconds`, "info")
-  }
-
-  // Handle time input changes
-  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-
-    // Allow direct editing without parsing immediately
-    if (value.length <= 9) {
-      // Max length for MM:SS.ms format
-      // Store the raw input value
-      const inputEl = startTimeInputRef.current
-      if (inputEl) {
-        // Keep cursor position
-        const cursorPos = e.target.selectionStart || 0
-
-        // Only parse and apply when the format is valid
-        const newStartTime = parseTimeInput(value)
-        if (newStartTime !== null && newStartTime >= 0 && newStartTime < endTime) {
-          setStartTime(newStartTime)
-          if (currentTime < newStartTime) {
-            setCurrentTime(newStartTime)
-            if (audioRef.current) {
-              audioRef.current.currentTime = newStartTime
-            }
-          }
-        }
-
-        // Restore cursor position after React updates the input
-        setTimeout(() => {
-          if (inputEl) {
-            inputEl.setSelectionRange(cursorPos, cursorPos)
-          }
-        }, 0)
-      }
-    }
-  }
-
-  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-
-    // Allow direct editing without parsing immediately
-    if (value.length <= 9) {
-      // Max length for MM:SS.ms format
-      // Store the raw input value
-      const inputEl = endTimeInputRef.current
-      if (inputEl) {
-        // Keep cursor position
-        const cursorPos = e.target.selectionStart || 0
-
-        // Only parse and apply when the format is valid
-        const newEndTime = parseTimeInput(value)
-        if (newEndTime !== null && newEndTime > startTime && newEndTime <= duration) {
-          setEndTime(newEndTime)
-          if (currentTime > newEndTime) {
-            setCurrentTime(newEndTime)
-            if (audioRef.current) {
-              audioRef.current.currentTime = newEndTime
-            }
-          }
-        }
-
-        // Restore cursor position after React updates the input
-        setTimeout(() => {
-          if (inputEl) {
-            inputEl.setSelectionRange(cursorPos, cursorPos)
-          }
-        }, 0)
-      }
-    }
-  }
-
-  const snapTimeToGrid = (time: number): number => {
-    if (!snapToGrid) return time
-    const snappedTime = Math.round(time / gridInterval) * gridInterval
-    return Math.max(0, Math.min(duration, snappedTime))
-  }
-
-  // Update current time manually
   const updateCurrentTime = (newTime: number, updateType?: "startTime" | "endTime") => {
     if (!audioRef.current) return
 
-    let clampedTime = Math.max(0, Math.min(newTime, duration))
-
-    // Apply snap to grid if enabled
-    if (snapToGrid && (updateType === "startTime" || updateType === "endTime")) {
-      clampedTime = snapTimeToGrid(clampedTime)
-    }
+    const clampedTime = Math.max(0, Math.min(newTime, duration))
 
     if (updateType === "startTime") {
       // Update start time
@@ -799,6 +686,20 @@ export default function AudioCutter() {
     }
   }
 
+  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseTimeInput(e.target.value)
+    if (newTime !== null) {
+      updateCurrentTime(newTime, "startTime")
+    }
+  }
+
+  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseTimeInput(e.target.value)
+    if (newTime !== null) {
+      updateCurrentTime(newTime, "endTime")
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Help Popup */}
@@ -951,24 +852,42 @@ export default function AudioCutter() {
             <div className="p-8">
               {!file ? (
                 <div className="text-center">
-                  <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-purple-500/10 dark:bg-purple-400/20 flex items-center justify-center animate-float">
+                  <div className="relative w-full max-w-md mx-auto mb-8 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 p-8 shadow-xl overflow-hidden">
+                    <div className="absolute inset-0 bg-white/40 dark:bg-black/20 backdrop-blur-sm"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-pink-500/10 animate-pulse"></div>
+
                     <div className="relative">
-                      <Music className="w-16 h-16 text-purple-600 dark:text-purple-400" />
-                      <div className="absolute inset-0 bg-purple-500 dark:bg-purple-400 opacity-20 blur-xl rounded-full animate-pulse-glow"></div>
+                      <div className="w-36 h-36 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 dark:from-purple-400/30 dark:to-indigo-400/30 flex items-center justify-center animate-float shadow-lg">
+                        <div className="relative">
+                          <Music className="w-20 h-20 text-purple-600 dark:text-purple-400" />
+                          <div className="absolute inset-0 bg-purple-500 dark:bg-purple-400 opacity-20 blur-xl rounded-full animate-pulse-glow"></div>
+                        </div>
+                      </div>
+
+                      <h2 className="headline-medium mb-3 text-slate-800 dark:text-white font-bold">
+                        Upload Your Audio
+                      </h2>
+                      <p className="body-large text-slate-600 dark:text-slate-300 mb-8 max-w-md mx-auto">
+                        Drag and drop your audio file here or click to browse
+                      </p>
+
+                      <button
+                        className="relative overflow-hidden group px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-500 dark:to-indigo-500 text-white font-medium text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                        onClick={() => document.getElementById("audio-upload")?.click()}
+                      >
+                        <span className="absolute inset-0 w-[200%] h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:-translate-x-[50%] transition-transform duration-1000 ease-in-out animate-shimmer"></span>
+                        <span className="relative flex items-center justify-center">
+                          <Upload className="mr-2 h-6 w-6" />
+                          Select Audio File
+                        </span>
+                      </button>
+
+                      <div className="mt-6 text-xs text-slate-500 dark:text-slate-400">
+                        Supports MP3, WAV, OGG, and other audio formats
+                      </div>
                     </div>
                   </div>
-                  <h2 className="headline-medium mb-2 text-slate-800 dark:text-white">Upload Your Audio</h2>
-                  <p className="body-large text-slate-600 dark:text-slate-300 mb-6 max-w-md mx-auto">
-                    Drag and drop your audio file here or click to browse
-                  </p>
-                  <button
-                    className="btn-primary relative overflow-hidden group animate-pulse hover:animate-none"
-                    onClick={() => document.getElementById("audio-upload")?.click()}
-                  >
-                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-600/0 via-purple-600/30 to-purple-600/0 group-hover:via-purple-600/50 -translate-x-full animate-shimmer group-hover:animate-none"></span>
-                    <Upload className="mr-2 h-5 w-5" />
-                    Select Audio File
-                  </button>
+
                   <input
                     id="audio-upload"
                     type="file"
@@ -1080,16 +999,6 @@ export default function AudioCutter() {
                   <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
                     <button className="btn-primary rounded-full p-3" onClick={togglePlayPause}>
                       {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                    </button>
-
-                    <button
-                      className="btn-outline rounded-full p-3"
-                      onClick={previewSelection}
-                      disabled={!file || isPlaying}
-                      title="Preview 3 seconds"
-                    >
-                      <Play className="h-4 w-4 mr-1" />
-                      Preview
                     </button>
 
                     <div className="flex flex-col items-center gap-1">
@@ -1308,7 +1217,7 @@ export default function AudioCutter() {
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Quick Selection:</span>
                         <div className="flex gap-2">
                           <button
-                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-3 py-1.5 rounded-md border-2 border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
                             onClick={() => {
                               setStartTime(0)
                               setEndTime(duration)
@@ -1317,7 +1226,7 @@ export default function AudioCutter() {
                             All
                           </button>
                           <button
-                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-3 py-1.5 rounded-md border-2 border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
                             onClick={() => {
                               setStartTime(0)
                               setEndTime(Math.min(duration, 30))
@@ -1326,7 +1235,7 @@ export default function AudioCutter() {
                             First 30s
                           </button>
                           <button
-                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-3 py-1.5 rounded-md border-2 border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
                             onClick={() => {
                               const newStart = Math.max(0, duration - 30)
                               setStartTime(newStart)
@@ -1336,7 +1245,7 @@ export default function AudioCutter() {
                             Last 30s
                           </button>
                           <button
-                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
+                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-3 py-1.5 rounded-md border-2 border-purple-200 dark:border-purple-800 hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
                             onClick={() => {
                               const middle = duration / 2
                               setStartTime(Math.max(0, middle - 15))
@@ -1514,32 +1423,6 @@ export default function AudioCutter() {
                         </div>
                       </div>
                     )}
-                    <div className="flex items-center justify-between mt-2">
-                      <Label htmlFor="snap" className="text-sm text-slate-700 dark:text-slate-300">
-                        Snap to Grid ({gridInterval}s)
-                      </Label>
-                      <Switch id="snap" checked={snapToGrid} onCheckedChange={setSnapToGrid} />
-                    </div>
-                    <div className="mt-2">
-                      <Label htmlFor="gridInterval" className="text-sm text-slate-700 dark:text-slate-300 mb-1 block">
-                        Grid Interval (seconds)
-                      </Label>
-                      <div className="flex gap-2">
-                        {[1, 5, 10, 15, 30].map((interval) => (
-                          <button
-                            key={interval}
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              gridInterval === interval
-                                ? "bg-purple-500 text-white dark:bg-purple-400 dark:text-black"
-                                : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
-                            }`}
-                            onClick={() => setGridInterval(interval)}
-                          >
-                            {interval}s
-                          </button>
-                        ))}
-                      </div>
-                    </div>
 
                     {showBookmarks && (
                       <div className="card mt-4 p-6">
@@ -1880,24 +1763,6 @@ export default function AudioCutter() {
                     </div>
                     <p className="body-medium text-slate-700 dark:text-slate-300">
                       Use the normalize feature to ensure consistent volume levels
-                    </p>
-                  </div>
-
-                  <div className="card p-4 flex items-start gap-2">
-                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
-                    </div>
-                    <p className="body-medium text-slate-700 dark:text-slate-300">
-                      Experiment with different export formats to find the best balance between quality and file size
-                    </p>
-                  </div>
-
-                  <div className="card p-4 flex items-start gap-2">
-                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
-                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
-                    </div>
-                    <p className="body-medium text-slate-700 dark:text-slate-300">
-                      Take advantage of keyboard shortcuts for faster editing
                     </p>
                   </div>
                 </ul>

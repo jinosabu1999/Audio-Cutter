@@ -12,8 +12,6 @@ interface AudioVisualizerProps {
   onTimeUpdate: (time: number, updateType?: "startTime" | "endTime") => void
   isPlaying: boolean
   zoomLevel?: number
-  snapToGrid?: boolean
-  gridInterval?: number
   addToast?: (message: string, type: string) => void
 }
 
@@ -26,8 +24,6 @@ export function AudioVisualizer({
   onTimeUpdate,
   isPlaying,
   zoomLevel = 1,
-  snapToGrid = false,
-  gridInterval = 5,
   addToast,
 }: AudioVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -304,31 +300,6 @@ export function AudioVisualizer({
     })
   }
 
-  const generateGridLines = () => {
-    if (!snapToGrid) return null
-
-    const lines = []
-    const startGridTime = Math.ceil(visibleStartTime / gridInterval) * gridInterval
-
-    for (let time = startGridTime; time <= visibleEndTime; time += gridInterval) {
-      const position = getPositionPercentage(time)
-
-      lines.push(
-        <div
-          key={`grid-${time}`}
-          className="absolute inset-y-0 w-px bg-slate-400/20 dark:bg-slate-600/20 pointer-events-none"
-          style={{ left: `${position}%` }}
-        >
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] text-slate-500/50 dark:text-slate-400/50">
-            {formatTime(time).substring(0, 5)}
-          </div>
-        </div>,
-      )
-    }
-
-    return lines
-  }
-
   useEffect(() => {
     if (isPlaying) {
       const animate = () => {
@@ -376,7 +347,6 @@ export function AudioVisualizer({
     >
       {/* Reflection surface */}
       <div className="absolute inset-x-0 top-1/2 h-1/2 bg-white/5 dark:bg-black/5" />
-      {snapToGrid && generateGridLines()}
 
       {/* Selected range overlay */}
       <div
