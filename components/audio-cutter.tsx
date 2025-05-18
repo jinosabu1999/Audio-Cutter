@@ -1004,7 +1004,7 @@ export default function AudioCutter() {
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Start Time Editor - Simplified */}
+                      {/* Start Time Editor - Improved with milliseconds */}
                       <div className="card p-4 bg-gradient-to-r from-purple-500/10 to-purple-500/20 dark:from-purple-400/10 dark:to-purple-400/20 rounded-xl">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">
@@ -1015,7 +1015,7 @@ export default function AudioCutter() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 mt-3">
+                        <div className="flex items-center gap-1 mt-3">
                           {/* Minutes */}
                           <div className="flex flex-col items-center">
                             <button
@@ -1057,7 +1057,9 @@ export default function AudioCutter() {
                             <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Min</span>
                           </div>
 
-                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">:</span>
+                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 self-center mt-1">
+                            :
+                          </span>
 
                           {/* Seconds */}
                           <div className="flex flex-col items-center">
@@ -1065,7 +1067,7 @@ export default function AudioCutter() {
                               className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                               onClick={() => {
                                 const newSeconds = Math.min(59, Math.floor(startTime % 60) + 1)
-                                const newTime = Math.floor(startTime / 60) * 60 + newSeconds
+                                const newTime = Math.floor(startTime / 60) * 60 + newSeconds + (startTime % 1)
                                 if (newTime < endTime) {
                                   updateCurrentTime(newTime, "startTime")
                                 }
@@ -1081,7 +1083,7 @@ export default function AudioCutter() {
                               onChange={(e) => {
                                 const newSeconds = Number.parseInt(e.target.value) || 0
                                 const clampedSeconds = Math.min(59, Math.max(0, newSeconds))
-                                const newTime = Math.floor(startTime / 60) * 60 + clampedSeconds
+                                const newTime = Math.floor(startTime / 60) * 60 + clampedSeconds + (startTime % 1)
                                 if (newTime < endTime) {
                                   updateCurrentTime(newTime, "startTime")
                                 }
@@ -1093,7 +1095,7 @@ export default function AudioCutter() {
                               className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                               onClick={() => {
                                 const newSeconds = Math.max(0, Math.floor(startTime % 60) - 1)
-                                const newTime = Math.floor(startTime / 60) * 60 + newSeconds
+                                const newTime = Math.floor(startTime / 60) * 60 + newSeconds + (startTime % 1)
                                 updateCurrentTime(newTime, "startTime")
                               }}
                             >
@@ -1102,9 +1104,56 @@ export default function AudioCutter() {
                             <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Sec</span>
                           </div>
 
-                          <div className="flex flex-col items-center ml-2">
+                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 self-center mt-1">
+                            .
+                          </span>
+
+                          {/* Milliseconds */}
+                          <div className="flex flex-col items-center">
                             <button
-                              className="w-full px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-md border border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors text-sm mb-1"
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMilliseconds = Math.min(9, Math.floor((startTime % 1) * 10) + 1)
+                                const newTime = Math.floor(startTime) + newMilliseconds / 10
+                                if (newTime < endTime) {
+                                  updateCurrentTime(newTime, "startTime")
+                                }
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              max="9"
+                              value={Math.floor((startTime % 1) * 10)}
+                              onChange={(e) => {
+                                const newMilliseconds = Number.parseInt(e.target.value) || 0
+                                const clampedMilliseconds = Math.min(9, Math.max(0, newMilliseconds))
+                                const newTime = Math.floor(startTime) + clampedMilliseconds / 10
+                                if (newTime < endTime) {
+                                  updateCurrentTime(newTime, "startTime")
+                                }
+                              }}
+                              className="w-12 h-12 text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-purple-500/50 dark:border-purple-400/50 rounded-lg text-slate-900 dark:text-white my-1"
+                              inputMode="numeric"
+                            />
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMilliseconds = Math.max(0, Math.floor((startTime % 1) * 10) - 1)
+                                const newTime = Math.floor(startTime) + newMilliseconds / 10
+                                updateCurrentTime(newTime, "startTime")
+                              }}
+                            >
+                              <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">ms</span>
+                          </div>
+
+                          <div className="flex flex-col items-center ml-auto gap-2">
+                            <button
+                              className="w-full px-3 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-md border border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors text-sm"
                               onClick={() => {
                                 setStartTime(0)
                                 setCurrentTime(0)
@@ -1116,7 +1165,7 @@ export default function AudioCutter() {
                               Start
                             </button>
                             <button
-                              className="w-full px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-md border border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors text-sm"
+                              className="w-full px-3 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-md border border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors text-sm"
                               onClick={() => {
                                 if (audioRef.current) {
                                   const newStartTime = currentTime
@@ -1133,7 +1182,7 @@ export default function AudioCutter() {
                         </div>
                       </div>
 
-                      {/* End Time Editor - Simplified */}
+                      {/* End Time Editor - Improved with milliseconds */}
                       <div className="card p-4 bg-gradient-to-r from-blue-500/10 to-blue-500/20 dark:from-blue-400/10 dark:to-blue-400/20 rounded-xl">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">
@@ -1144,7 +1193,7 @@ export default function AudioCutter() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 mt-3">
+                        <div className="flex items-center gap-1 mt-3">
                           {/* Minutes */}
                           <div className="flex flex-col items-center">
                             <button
@@ -1186,7 +1235,9 @@ export default function AudioCutter() {
                             <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Min</span>
                           </div>
 
-                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">:</span>
+                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 self-center mt-1">
+                            :
+                          </span>
 
                           {/* Seconds */}
                           <div className="flex flex-col items-center">
@@ -1194,7 +1245,10 @@ export default function AudioCutter() {
                               className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                               onClick={() => {
                                 const newSeconds = Math.min(59, Math.floor(endTime % 60) + 1)
-                                const newTime = Math.min(duration, Math.floor(endTime / 60) * 60 + newSeconds)
+                                const newTime = Math.min(
+                                  duration,
+                                  Math.floor(endTime / 60) * 60 + newSeconds + (endTime % 1),
+                                )
                                 updateCurrentTime(newTime, "endTime")
                               }}
                             >
@@ -1208,7 +1262,7 @@ export default function AudioCutter() {
                               onChange={(e) => {
                                 const newSeconds = Number.parseInt(e.target.value) || 0
                                 const clampedSeconds = Math.min(59, Math.max(0, newSeconds))
-                                const newTime = Math.floor(endTime / 60) * 60 + clampedSeconds
+                                const newTime = Math.floor(endTime / 60) * 60 + clampedSeconds + (endTime % 1)
                                 if (newTime > startTime) {
                                   updateCurrentTime(newTime, "endTime")
                                 }
@@ -1220,7 +1274,7 @@ export default function AudioCutter() {
                               className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                               onClick={() => {
                                 const newSeconds = Math.max(0, Math.floor(endTime % 60) - 1)
-                                const newTime = Math.floor(endTime / 60) * 60 + newSeconds
+                                const newTime = Math.floor(endTime / 60) * 60 + newSeconds + (endTime % 1)
                                 if (newTime > startTime) {
                                   updateCurrentTime(newTime, "endTime")
                                 }
@@ -1231,9 +1285,56 @@ export default function AudioCutter() {
                             <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Sec</span>
                           </div>
 
-                          <div className="flex flex-col items-center ml-2">
+                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 self-center mt-1">
+                            .
+                          </span>
+
+                          {/* Milliseconds */}
+                          <div className="flex flex-col items-center">
                             <button
-                              className="w-full px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors text-sm mb-1"
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMilliseconds = Math.min(9, Math.floor((endTime % 1) * 10) + 1)
+                                const newTime = Math.min(duration, Math.floor(endTime) + newMilliseconds / 10)
+                                updateCurrentTime(newTime, "endTime")
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              max="9"
+                              value={Math.floor((endTime % 1) * 10)}
+                              onChange={(e) => {
+                                const newMilliseconds = Number.parseInt(e.target.value) || 0
+                                const clampedMilliseconds = Math.min(9, Math.max(0, newMilliseconds))
+                                const newTime = Math.floor(endTime) + clampedMilliseconds / 10
+                                if (newTime > startTime) {
+                                  updateCurrentTime(newTime, "endTime")
+                                }
+                              }}
+                              className="w-12 h-12 text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-blue-500/50 dark:border-blue-400/50 rounded-lg text-slate-900 dark:text-white my-1"
+                              inputMode="numeric"
+                            />
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMilliseconds = Math.max(0, Math.floor((endTime % 1) * 10) - 1)
+                                const newTime = Math.floor(endTime) + newMilliseconds / 10
+                                if (newTime > startTime) {
+                                  updateCurrentTime(newTime, "endTime")
+                                }
+                              }}
+                            >
+                              <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">ms</span>
+                          </div>
+
+                          <div className="flex flex-col items-center ml-auto gap-2">
+                            <button
+                              className="w-full px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors text-sm"
                               onClick={() => {
                                 if (audioRef.current) {
                                   const newEndTime = currentTime
@@ -1247,7 +1348,7 @@ export default function AudioCutter() {
                               Current
                             </button>
                             <button
-                              className="w-full px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors text-sm"
+                              className="w-full px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors text-sm"
                               onClick={() => {
                                 setEndTime(duration)
                               }}
