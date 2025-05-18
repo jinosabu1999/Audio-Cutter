@@ -23,12 +23,10 @@ import {
   Layers,
   X,
   Info,
-  HelpCircle,
   Folder,
   Trash2,
   ChevronRight,
   Wand2,
-  Zap,
   Download,
   Bookmark,
   Music,
@@ -40,7 +38,7 @@ import {
   FileText,
   BarChart2,
 } from "lucide-react"
-import { formatTime, parseTimeInput } from "@/lib/time-utils"
+import { formatTime } from "@/lib/time-utils"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/ui/theme-context"
 import { useToast } from "@/components/ui/toast-provider"
@@ -686,20 +684,6 @@ export default function AudioCutter() {
     }
   }
 
-  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseTimeInput(e.target.value)
-    if (newTime !== null) {
-      updateCurrentTime(newTime, "startTime")
-    }
-  }
-
-  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseTimeInput(e.target.value)
-    if (newTime !== null) {
-      updateCurrentTime(newTime, "endTime")
-    }
-  }
-
   return (
     <div className="max-w-4xl mx-auto">
       {/* Help Popup */}
@@ -1013,14 +997,14 @@ export default function AudioCutter() {
                     </div>
                   </div>
 
-                  {/* Modern Time Editor Controls */}
+                  {/* Time Editor Controls - Simplified */}
                   <div className="mb-6">
                     <h3 className="text-lg font-medium mb-4 text-slate-800 dark:text-white text-center">
                       Edit Time Range
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Start Time Editor */}
+                      {/* Start Time Editor - Simplified */}
                       <div className="card p-4 bg-gradient-to-r from-purple-500/10 to-purple-500/20 dark:from-purple-400/10 dark:to-purple-400/20 rounded-xl">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">
@@ -1029,96 +1013,127 @@ export default function AudioCutter() {
                             </div>
                             <span className="font-medium text-slate-800 dark:text-white">Start Time</span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400"
-                            onClick={() => setShowHelpPopup(true)}
-                          >
-                            <HelpCircle className="h-3 w-3" />
-                          </Button>
                         </div>
 
-                        <div className="flex items-center mt-3">
-                          <button
-                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                            onClick={() => {
-                              const newTime = Math.max(0, startTime - 1)
-                              setStartTime(newTime)
-                              if (currentTime < newTime) {
-                                setCurrentTime(newTime)
-                                if (audioRef.current) {
-                                  audioRef.current.currentTime = newTime
+                        <div className="flex items-center gap-2 mt-3">
+                          {/* Minutes */}
+                          <div className="flex flex-col items-center">
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMinutes = Math.floor(startTime / 60) + 1
+                                const newTime = newMinutes * 60 + (startTime % 60)
+                                if (newTime < endTime) {
+                                  updateCurrentTime(newTime, "startTime")
                                 }
-                              }
-                            }}
-                          >
-                            <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
-                          </button>
-
-                          <div className="relative flex-1 mx-2">
-                            <Input
-                              id="start-time"
-                              ref={startTimeInputRef}
-                              value={formatTime(startTime)}
-                              onChange={handleStartTimeChange}
-                              className="text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-purple-500/50 dark:border-purple-400/50 rounded-lg text-slate-900 dark:text-white"
-                              inputMode="decimal"
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={Math.floor(startTime / 60)}
+                              onChange={(e) => {
+                                const newMinutes = Number.parseInt(e.target.value) || 0
+                                const newTime = newMinutes * 60 + (startTime % 60)
+                                if (newTime < endTime) {
+                                  updateCurrentTime(newTime, "startTime")
+                                }
+                              }}
+                              className="w-12 h-12 text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-purple-500/50 dark:border-purple-400/50 rounded-lg text-slate-900 dark:text-white my-1"
+                              inputMode="numeric"
                             />
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                              <Zap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                            </div>
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMinutes = Math.max(0, Math.floor(startTime / 60) - 1)
+                                const newTime = newMinutes * 60 + (startTime % 60)
+                                updateCurrentTime(newTime, "startTime")
+                              }}
+                            >
+                              <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Min</span>
                           </div>
 
-                          <button
-                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                            onClick={() => {
-                              const newTime = Math.min(endTime - 0.1, startTime + 1)
-                              setStartTime(newTime)
-                              if (currentTime < newTime) {
-                                setCurrentTime(newTime)
+                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">:</span>
+
+                          {/* Seconds */}
+                          <div className="flex flex-col items-center">
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newSeconds = Math.min(59, Math.floor(startTime % 60) + 1)
+                                const newTime = Math.floor(startTime / 60) * 60 + newSeconds
+                                if (newTime < endTime) {
+                                  updateCurrentTime(newTime, "startTime")
+                                }
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={Math.floor(startTime % 60)}
+                              onChange={(e) => {
+                                const newSeconds = Number.parseInt(e.target.value) || 0
+                                const clampedSeconds = Math.min(59, Math.max(0, newSeconds))
+                                const newTime = Math.floor(startTime / 60) * 60 + clampedSeconds
+                                if (newTime < endTime) {
+                                  updateCurrentTime(newTime, "startTime")
+                                }
+                              }}
+                              className="w-12 h-12 text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-purple-500/50 dark:border-purple-400/50 rounded-lg text-slate-900 dark:text-white my-1"
+                              inputMode="numeric"
+                            />
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newSeconds = Math.max(0, Math.floor(startTime % 60) - 1)
+                                const newTime = Math.floor(startTime / 60) * 60 + newSeconds
+                                updateCurrentTime(newTime, "startTime")
+                              }}
+                            >
+                              <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Sec</span>
+                          </div>
+
+                          <div className="flex flex-col items-center ml-2">
+                            <button
+                              className="w-full px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-md border border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors text-sm mb-1"
+                              onClick={() => {
+                                setStartTime(0)
+                                setCurrentTime(0)
                                 if (audioRef.current) {
-                                  audioRef.current.currentTime = newTime
+                                  audioRef.current.currentTime = 0
                                 }
-                              }
-                            }}
-                          >
-                            <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
-                          </button>
-                        </div>
-
-                        <div className="flex justify-between mt-2">
-                          <button
-                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
-                            onClick={() => {
-                              setStartTime(0)
-                              setCurrentTime(0)
-                              if (audioRef.current) {
-                                audioRef.current.currentTime = 0
-                              }
-                            }}
-                          >
-                            Start
-                          </button>
-
-                          <button
-                            className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 px-2 py-1 rounded-full"
-                            onClick={() => {
-                              if (audioRef.current) {
-                                const newStartTime = currentTime
-                                if (newStartTime < endTime) {
-                                  setStartTime(newStartTime)
-                                  addToast("Start point set", "info")
+                              }}
+                            >
+                              Start
+                            </button>
+                            <button
+                              className="w-full px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-md border border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors text-sm"
+                              onClick={() => {
+                                if (audioRef.current) {
+                                  const newStartTime = currentTime
+                                  if (newStartTime < endTime) {
+                                    setStartTime(newStartTime)
+                                    addToast("Start point set", "info")
+                                  }
                                 }
-                              }
-                            }}
-                          >
-                            Set to Current
-                          </button>
+                              }}
+                            >
+                              Current
+                            </button>
+                          </div>
                         </div>
                       </div>
 
-                      {/* End Time Editor */}
+                      {/* End Time Editor - Simplified */}
                       <div className="card p-4 bg-gradient-to-r from-blue-500/10 to-blue-500/20 dark:from-blue-400/10 dark:to-blue-400/20 rounded-xl">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">
@@ -1129,72 +1144,117 @@ export default function AudioCutter() {
                           </div>
                         </div>
 
-                        <div className="flex items-center mt-3">
-                          <button
-                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                            onClick={() => {
-                              const newTime = Math.max(startTime + 0.1, endTime - 1)
-                              setEndTime(newTime)
-                              if (currentTime > newTime) {
-                                setCurrentTime(newTime)
-                                if (audioRef.current) {
-                                  audioRef.current.currentTime = newTime
+                        <div className="flex items-center gap-2 mt-3">
+                          {/* Minutes */}
+                          <div className="flex flex-col items-center">
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMinutes = Math.floor(endTime / 60) + 1
+                                const newTime = Math.min(duration, newMinutes * 60 + (endTime % 60))
+                                updateCurrentTime(newTime, "endTime")
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={Math.floor(endTime / 60)}
+                              onChange={(e) => {
+                                const newMinutes = Number.parseInt(e.target.value) || 0
+                                const newTime = Math.min(duration, newMinutes * 60 + (endTime % 60))
+                                if (newTime > startTime) {
+                                  updateCurrentTime(newTime, "endTime")
                                 }
-                              }
-                            }}
-                          >
-                            <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
-                          </button>
-
-                          <div className="relative flex-1 mx-2">
-                            <Input
-                              id="end-time"
-                              ref={endTimeInputRef}
-                              value={formatTime(endTime)}
-                              onChange={handleEndTimeChange}
-                              className="text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-blue-500/50 dark:border-blue-400/50 rounded-lg text-slate-900 dark:text-white"
-                              inputMode="decimal"
+                              }}
+                              className="w-12 h-12 text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-blue-500/50 dark:border-blue-400/50 rounded-lg text-slate-900 dark:text-white my-1"
+                              inputMode="numeric"
                             />
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                              <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                            </div>
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newMinutes = Math.max(0, Math.floor(endTime / 60) - 1)
+                                const newTime = newMinutes * 60 + (endTime % 60)
+                                if (newTime > startTime) {
+                                  updateCurrentTime(newTime, "endTime")
+                                }
+                              }}
+                            >
+                              <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Min</span>
                           </div>
 
-                          <button
-                            className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                            onClick={() => {
-                              const newTime = Math.min(duration, endTime + 1)
-                              setEndTime(newTime)
-                            }}
-                          >
-                            <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
-                          </button>
-                        </div>
+                          <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">:</span>
 
-                        <div className="flex justify-between mt-2">
-                          <button
-                            className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-1 rounded-full"
-                            onClick={() => {
-                              if (audioRef.current) {
-                                const newEndTime = currentTime
-                                if (newEndTime > startTime) {
-                                  setEndTime(newEndTime)
-                                  addToast("End point set", "info")
+                          {/* Seconds */}
+                          <div className="flex flex-col items-center">
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newSeconds = Math.min(59, Math.floor(endTime % 60) + 1)
+                                const newTime = Math.min(duration, Math.floor(endTime / 60) * 60 + newSeconds)
+                                updateCurrentTime(newTime, "endTime")
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={Math.floor(endTime % 60)}
+                              onChange={(e) => {
+                                const newSeconds = Number.parseInt(e.target.value) || 0
+                                const clampedSeconds = Math.min(59, Math.max(0, newSeconds))
+                                const newTime = Math.floor(endTime / 60) * 60 + clampedSeconds
+                                if (newTime > startTime) {
+                                  updateCurrentTime(newTime, "endTime")
                                 }
-                              }
-                            }}
-                          >
-                            Set to Current
-                          </button>
+                              }}
+                              className="w-12 h-12 text-center py-2 font-mono text-lg bg-white dark:bg-slate-800 border-2 border-blue-500/50 dark:border-blue-400/50 rounded-lg text-slate-900 dark:text-white my-1"
+                              inputMode="numeric"
+                            />
+                            <button
+                              className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                              onClick={() => {
+                                const newSeconds = Math.max(0, Math.floor(endTime % 60) - 1)
+                                const newTime = Math.floor(endTime / 60) * 60 + newSeconds
+                                if (newTime > startTime) {
+                                  updateCurrentTime(newTime, "endTime")
+                                }
+                              }}
+                            >
+                              <Minus className="h-4 w-4 text-slate-700 dark:text-slate-200" />
+                            </button>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">Sec</span>
+                          </div>
 
-                          <button
-                            className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-1 rounded-full"
-                            onClick={() => {
-                              setEndTime(duration)
-                            }}
-                          >
-                            End
-                          </button>
+                          <div className="flex flex-col items-center ml-2">
+                            <button
+                              className="w-full px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors text-sm mb-1"
+                              onClick={() => {
+                                if (audioRef.current) {
+                                  const newEndTime = currentTime
+                                  if (newEndTime > startTime) {
+                                    setEndTime(newEndTime)
+                                    addToast("End point set", "info")
+                                  }
+                                }
+                              }}
+                            >
+                              Current
+                            </button>
+                            <button
+                              className="w-full px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800 hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors text-sm"
+                              onClick={() => {
+                                setEndTime(duration)
+                              }}
+                            >
+                              End
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
