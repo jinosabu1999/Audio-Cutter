@@ -1819,9 +1819,9 @@ export default function AudioCutter() {
                       <Scissors className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Precision Cutting</h3>
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Precision Audio Trimming</h3>
                       <p className="body-small text-slate-600 dark:text-slate-300">
-                        Cut your audio with millisecond precision
+                        Cut audio with frame-perfect accuracy down to milliseconds using our advanced waveform editor
                       </p>
                     </div>
                   </div>
@@ -1831,9 +1831,9 @@ export default function AudioCutter() {
                       <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Audio Effects</h3>
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Professional Audio Effects</h3>
                       <p className="body-small text-slate-600 dark:text-slate-300">
-                        Apply professional effects to your audio
+                        Apply studio-quality effects including normalization, fade in/out, reverb, and pitch adjustment
                       </p>
                     </div>
                   </div>
@@ -1843,9 +1843,9 @@ export default function AudioCutter() {
                       <Layers className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Batch Processing</h3>
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Intelligent Batch Processing</h3>
                       <p className="body-small text-slate-600 dark:text-slate-300">
-                        Process multiple audio files at once
+                        Process hundreds of audio files simultaneously with consistent settings and quality
                       </p>
                     </div>
                   </div>
@@ -1855,9 +1855,33 @@ export default function AudioCutter() {
                       <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Precise Time Control</h3>
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Smart Time Navigation</h3>
                       <p className="body-small text-slate-600 dark:text-slate-300">
-                        Fine-tune your cuts with millisecond accuracy
+                        Navigate through audio with bookmarks, quick selections, and precision time controls
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="card p-4 flex items-start gap-3">
+                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-3 rounded-lg">
+                      <Download className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Multi-Format Export</h3>
+                      <p className="body-small text-slate-600 dark:text-slate-300">
+                        Export to MP3, WAV, OGG, M4A with customizable quality settings and compression
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="card p-4 flex items-start gap-3">
+                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-3 rounded-lg">
+                      <Save className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="title-small mb-1 text-slate-800 dark:text-white">Project Management</h3>
+                      <p className="body-small text-slate-600 dark:text-slate-300">
+                        Save, organize, and revisit your audio projects with automatic progress preservation
                       </p>
                     </div>
                   </div>
@@ -1871,7 +1895,7 @@ export default function AudioCutter() {
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="card p-4 flex justify-between items-center">
-                    <span className="body-medium text-slate-700 dark:text-slate-300">Play/Pause</span>
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Play/Pause Audio</span>
                     <Badge
                       variant="outline"
                       className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
@@ -1881,7 +1905,7 @@ export default function AudioCutter() {
                   </div>
 
                   <div className="card p-4 flex justify-between items-center">
-                    <span className="body-medium text-slate-700 dark:text-slate-300">Skip Forward</span>
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Skip Forward 5s</span>
                     <Badge
                       variant="outline"
                       className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
@@ -1891,7 +1915,17 @@ export default function AudioCutter() {
                   </div>
 
                   <div className="card p-4 flex justify-between items-center">
-                    <span className="body-medium text-slate-700 dark:text-slate-300">Skip Backward</span>
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Skip Backward 5s</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
+                    >
+                      ←
+                    </Badge>
+                  </div>
+
+                  <div className="card p-4 flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Set Start Point</span>
                     <Badge
                       variant="outline"
                       className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
@@ -1909,6 +1943,56 @@ export default function AudioCutter() {
                       E
                     </Badge>
                   </div>
+
+                  <div className="card p-4 flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Toggle Mute</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
+                    >
+                      M
+                    </Badge>
+                  </div>
+
+                  <div className="card p-4 flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Cut & Export</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
+                    >
+                      Ctrl+C
+                    </Badge>
+                  </div>
+
+                  <div className="card p-4 flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Zoom In/Out</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
+                    >
+                      +/-
+                    </Badge>
+                  </div>
+
+                  <div className="card p-4 flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Select All Audio</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
+                    >
+                      X
+                    </Badge>
+                  </div>
+
+                  <div className="card p-4 flex justify-between items-center">
+                    <span className="body-medium text-slate-700 dark:text-slate-300">Show Shortcuts</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-purple-500/10 dark:bg-purple-400/20 text-purple-600 dark:text-purple-400 border-purple-500/30 dark:border-purple-400/30"
+                    >
+                      K
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1923,7 +2007,53 @@ export default function AudioCutter() {
                       <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
                     </div>
                     <p className="body-medium text-slate-700 dark:text-slate-300">
-                      Use the normalize feature to ensure consistent volume levels
+                      Use the normalize feature to ensure consistent volume levels across all your audio exports
+                    </p>
+                  </div>
+
+                  <div className="card p-4 flex items-start gap-2">
+                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
+                    </div>
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
+                      Double-tap on the waveform to quickly set start and end points based on your current position
+                    </p>
+                  </div>
+
+                  <div className="card p-4 flex items-start gap-2">
+                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
+                    </div>
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
+                      Save export presets for different use cases like podcasts, music, or voice recordings
+                    </p>
+                  </div>
+
+                  <div className="card p-4 flex items-start gap-2">
+                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
+                    </div>
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
+                      Use bookmarks to mark important sections and quickly navigate through long audio files
+                    </p>
+                  </div>
+
+                  <div className="card p-4 flex items-start gap-2">
+                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
+                    </div>
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
+                      Enable fade in/out effects for smoother transitions, especially when cutting from the middle of
+                      tracks
+                    </p>
+                  </div>
+
+                  <div className="card p-4 flex items-start gap-2">
+                    <div className="bg-purple-500/10 dark:bg-purple-400/20 p-1 rounded-full mt-0.5">
+                      <div className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400"></div>
+                    </div>
+                    <p className="body-medium text-slate-700 dark:text-slate-300">
+                      Use batch processing to apply the same cuts and effects to multiple files with identical timing
                     </p>
                   </div>
                 </ul>
