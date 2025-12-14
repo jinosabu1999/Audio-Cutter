@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
@@ -42,6 +42,16 @@ import {
   Filter,
   Gauge,
   AudioLines,
+  Undo2,
+  Redo2,
+  FastForward,
+  Rewind,
+  BarChart3,
+  HelpCircle,
+  Lightbulb,
+  Clock,
+  Save,
+  History,
 } from "lucide-react"
 import { formatTime } from "@/lib/time-utils"
 import { cn } from "@/lib/utils"
@@ -63,6 +73,19 @@ interface SavedProject {
   startTime: number
   endTime: number
   audioUrl: string
+}
+
+interface HistoryState {
+  startTime: number
+  endTime: number
+  bookmarks: AudioBookmark[]
+  effects: EffectSettings
+}
+
+interface RecentFile {
+  name: string
+  date: string
+  size: string
 }
 
 interface EffectSettings {
@@ -105,6 +128,14 @@ const defaultEffects: EffectSettings = {
   stereoWidth: 100,
 }
 
+const effectPresets = {
+  voice: { eqLow: 2, eqMid: 4, eqHigh: -1, compressorThreshold: -18, compressorRatio: 6 },
+  podcast: { eqLow: -2, eqMid: 3, eqHigh: 2, compressorThreshold: -16, compressorRatio: 4 },
+  music: { eqLow: 3, eqMid: 0, eqHigh: 3, reverbMix: 20, stereoWidth: 150 },
+  bass: { eqLow: 8, eqMid: -2, eqHigh: 0, compressorThreshold: -20, compressorRatio: 3 },
+  clarity: { eqLow: -3, eqMid: 2, eqHigh: 5, highpassFreq: 80, compressorThreshold: -18 },
+}
+
 const bookmarkColors = ["#8b5cf6", "#ec4899", "#22c55e", "#3b82f6", "#f97316", "#eab308"]
 
 type TabType = "home" | "editor" | "effects" | "export" | "projects"
@@ -140,12 +171,123 @@ export default function AudioCutter() {
   const [normalize, setNormalize] = useState<boolean>(false)
   const [trimSilence, setTrimSilence] = useState<boolean>(false)
 
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1)
+  const [history, setHistory] = useState<HistoryState[]>([])
+  const [historyIndex, setHistoryIndex] = useState<number>(-1)
+  const [showTutorial, setShowTutorial] = useState<boolean>(false)
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState<boolean>(false)
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>([])
+  const [frequencyData, setFrequencyData] = useState<Uint8Array>(new Uint8Array(128))
+  const [showSpectrum, setShowSpectrum] = useState<boolean>(false)
+  const [waveformOffset, setWaveformOffset] = useState<number>(0) // Not used in current implementation, but potentially for future scrolling
+  const [isDraggingStart, setIsDraggingStart] = useState<boolean>(false)
+  const [isDraggingEnd, setIsDraggingEnd] = useState<boolean>(false)
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(true)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const currentTimeRef = useRef<number>(0)
   const startTimeRef = useRef<number>(0)
   const endTimeRef = useRef<number>(0)
+  const animationFrameRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const hasVisited = localStorage.getItem("modusAudioVisited")
+    if (!hasVisited) {
+      setShowTutorial(true)
+      localStorage.setItem("modusAudioVisited", "true")
+    }
+
+    // Load recent files
+    const saved = localStorage.getItem("recentFiles")
+    if (saved) {
+      setRecentFiles(JSON.parse(saved))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!autoSaveEnabled || !file) return
+
+    const autoSaveInterval = setInterval(() => {
+      saveProject(true)
+    }, 60000) // Auto-save every 60 seconds
+
+    return () => clearInterval(autoSaveInterval)
+  }, [autoSaveEnabled, file, projectName, startTime, endTime])
+
+  useEffect(() => {
+    if (!showSpectrum || !analyserRef.current || !isPlaying) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+      return
+    }
+
+    const analyser = analyserRef.current
+    const bufferLength = analyser.frequencyBinCount
+    const dataArray = new Uint8Array(bufferLength)
+
+    const updateSpectrum = () => {
+      analyser.getByteFrequencyData(dataArray)
+      // Slice to 128 bins for a reasonable spectrum display
+      setFrequencyData(new Uint8Array(dataArray.slice(0, 128)))
+      animationFrameRef.current = requestAnimationFrame(updateSpectrum)
+    }
+
+    updateSpectrum()
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [showSpectrum, isPlaying])
+
+  const saveToHistory = useCallback(() => {
+    const newState: HistoryState = {
+      startTime,
+      endTime,
+      bookmarks: [...bookmarks],
+      effects: { ...effects },
+    }
+
+    const newHistory = history.slice(0, historyIndex + 1)
+    newHistory.push(newState)
+
+    // Keep only last 20 states
+    if (newHistory.length > 20) {
+      newHistory.shift()
+    }
+
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+  }, [startTime, endTime, bookmarks, effects, history, historyIndex])
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevState = history[historyIndex - 1]
+      setStartTime(prevState.startTime)
+      setEndTime(prevState.endTime)
+      setBookmarks(prevState.bookmarks)
+      setEffects(prevState.effects)
+      setHistoryIndex(historyIndex - 1)
+      addToast("Undo successful", "info")
+    }
+  }, [historyIndex, history, addToast])
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1]
+      setStartTime(nextState.startTime)
+      setEndTime(nextState.endTime)
+      setBookmarks(nextState.bookmarks)
+      setEffects(nextState.effects)
+      setHistoryIndex(historyIndex + 1)
+      addToast("Redo successful", "info")
+    }
+  }, [historyIndex, history, addToast])
 
   useEffect(() => {
     startTimeRef.current = startTime
@@ -184,7 +326,15 @@ export default function AudioCutter() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if the event target is an input or textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+
+      // Show help
+      if (e.code === "Slash" && e.shiftKey) {
+        e.preventDefault()
+        setShowKeyboardHelp(true)
+        return
+      }
 
       switch (e.code) {
         case "Space":
@@ -193,11 +343,11 @@ export default function AudioCutter() {
           break
         case "ArrowLeft":
           e.preventDefault()
-          seekTo(Math.max(0, currentTimeRef.current - 5))
+          seekTo(Math.max(0, currentTimeRef.current - (e.shiftKey ? 1 : 5)))
           break
         case "ArrowRight":
           e.preventDefault()
-          seekTo(Math.min(duration, currentTimeRef.current + 5))
+          seekTo(Math.min(duration, currentTimeRef.current + (e.shiftKey ? 1 : 5)))
           break
         case "KeyM":
           setIsMuted(!isMuted)
@@ -206,20 +356,56 @@ export default function AudioCutter() {
           setIsLooping(!isLooping)
           break
         case "KeyS":
-          if (file) setStartTime(currentTimeRef.current)
+          // Check for Ctrl/Cmd + S for saving project
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault()
+            saveProject()
+          } else if (file) {
+            // If just 'S' and file exists, set start time
+            setStartTime(currentTimeRef.current)
+            saveToHistory()
+          }
           break
         case "KeyE":
-          if (file) setEndTime(currentTimeRef.current)
+          if (file) {
+            setEndTime(currentTimeRef.current)
+            saveToHistory()
+          }
           break
         case "KeyB":
           if (file) addBookmark()
+          break
+        case "KeyZ":
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault()
+            if (e.shiftKey) {
+              redo()
+            } else {
+              undo()
+            }
+          }
+          break
+        case "BracketLeft": // '[' key
+          setPlaybackSpeed(Math.max(0.25, playbackSpeed - 0.25))
+          break
+        case "BracketRight": // ']' key
+          setPlaybackSpeed(Math.min(2, playbackSpeed + 0.25))
+          break
+        case "KeyV": // 'V' key
+          setShowSpectrum(!showSpectrum)
           break
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [duration, isMuted, isLooping, file])
+  }, [duration, isMuted, isLooping, file, playbackSpeed, showSpectrum, undo, redo, saveToHistory])
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed
+    }
+  }, [playbackSpeed])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -233,6 +419,16 @@ export default function AudioCutter() {
       setFile(selectedFile)
       setAudioUrl(url)
       setProjectName(selectedFile.name.replace(/\.[^/.]+$/, ""))
+
+      const newRecent: RecentFile = {
+        name: selectedFile.name,
+        date: new Date().toISOString(),
+        size: (selectedFile.size / 1024 / 1024).toFixed(2) + " MB",
+      }
+      // Keep only the last 5 recent files and avoid duplicates
+      const updated = [newRecent, ...recentFiles.filter((f) => f.name !== selectedFile.name)].slice(0, 5)
+      setRecentFiles(updated)
+      localStorage.setItem("recentFiles", JSON.stringify(updated))
 
       const audioContext = new AudioContext()
       audioContextRef.current = audioContext
@@ -250,10 +446,15 @@ export default function AudioCutter() {
       analyser.fftSize = 2048
       analyserRef.current = analyser
 
+      setHistory([]) // Clear existing history when loading a new file
+      setHistoryIndex(-1)
+      saveToHistory()
+
       setActiveTab("editor")
       addToast("Audio loaded successfully", "success")
     } catch (error) {
-      addToast("Failed to load audio file", "error")
+      console.error("Error processing file:", error)
+      addToast("Failed to load audio file. Please try a different format.", "error")
     } finally {
       setIsProcessing(false)
     }
@@ -261,18 +462,20 @@ export default function AudioCutter() {
 
   const generateWaveformData = (buffer: AudioBuffer) => {
     const rawData = buffer.getChannelData(0)
-    const samples = 150
+    const samples = 150 // Number of points to represent the waveform
     const blockSize = Math.floor(rawData.length / samples)
     const filteredData: number[] = []
 
     for (let i = 0; i < samples; i++) {
       let sum = 0
+      // Calculate the average absolute value for each block
       for (let j = 0; j < blockSize; j++) {
         sum += Math.abs(rawData[i * blockSize + j])
       }
       filteredData.push(sum / blockSize)
     }
 
+    // Normalize the data to a 0-1 range for consistent display
     const maxVal = Math.max(...filteredData)
     const normalizedData = filteredData.map((val) => val / maxVal)
     setWaveformData(normalizedData)
@@ -300,7 +503,9 @@ export default function AudioCutter() {
   }
 
   const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!duration) return
+    // Prevent seeking if dragging selection or waveform markers
+    if (!duration || isDraggingStart || isDraggingEnd) return
+
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
     const percentage = x / rect.width
@@ -316,7 +521,15 @@ export default function AudioCutter() {
       color: bookmarkColors[bookmarks.length % bookmarkColors.length],
     }
     setBookmarks([...bookmarks, newBookmark])
+    saveToHistory()
     addToast("Bookmark added", "success")
+  }
+
+  const applyEffectPreset = (presetName: keyof typeof effectPresets) => {
+    const preset = effectPresets[presetName]
+    setEffects({ ...effects, ...preset })
+    saveToHistory()
+    addToast(`Applied ${presetName} preset`, "success")
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -330,10 +543,11 @@ export default function AudioCutter() {
     e.preventDefault()
     setIsDragging(false)
     const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile?.type.startsWith("audio/") || droppedFile?.type.startsWith("video/")) {
+    // Check if the dropped file is an audio file
+    if (droppedFile && droppedFile.type.startsWith("audio/")) {
       await processFile(droppedFile)
     } else {
-      addToast("Please drop an audio file", "error")
+      addToast("Please drop an audio file", "warning")
     }
   }
 
@@ -347,13 +561,16 @@ export default function AudioCutter() {
       const endSample = Math.floor(endTime * sampleRate)
       const length = endSample - startSample
 
+      // Use OfflineAudioContext for non-real-time audio processing
       const offlineContext = new OfflineAudioContext(audioBuffer.numberOfChannels, length, sampleRate)
       const source = offlineContext.createBufferSource()
 
+      // Create a new buffer for the selected segment
       const newBuffer = offlineContext.createBuffer(audioBuffer.numberOfChannels, length, sampleRate)
       for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
         const oldData = audioBuffer.getChannelData(channel)
         const newData = newBuffer.getChannelData(channel)
+        // Copy the relevant part of the audio data
         for (let i = 0; i < length; i++) {
           newData[i] = oldData[startSample + i]
         }
@@ -364,69 +581,77 @@ export default function AudioCutter() {
       source.start()
 
       const renderedBuffer = await offlineContext.startRendering()
+
+      // Convert AudioBuffer to WAV blob
       const wavBlob = audioBufferToWav(renderedBuffer)
       const url = URL.createObjectURL(wavBlob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `${projectName || "audio"}_cut.${exportFormat}`
+      a.download = `${projectName || "audio"}_cut.${exportFormat}` // Set default filename
       a.click()
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(url) // Clean up the object URL
 
       addToast("Export complete!", "success")
     } catch (error) {
-      addToast("Export failed", "error")
+      console.error("Export failed:", error)
+      addToast("Export failed. Please try again.", "error")
     } finally {
       setIsProcessing(false)
     }
   }
 
+  // Helper function to convert AudioBuffer to WAV Blob
   const audioBufferToWav = (buffer: AudioBuffer): Blob => {
     const numChannels = buffer.numberOfChannels
     const sampleRate = buffer.sampleRate
-    const format = 1
-    const bitDepth = 16
+    const format = 1 // PCM format
+    const bitDepth = 16 // 16-bit audio
     const bytesPerSample = bitDepth / 8
     const blockAlign = numChannels * bytesPerSample
     const dataLength = buffer.length * blockAlign
-    const bufferLength = 44 + dataLength
+    const bufferLength = 44 + dataLength // 44 bytes for WAV header
     const arrayBuffer = new ArrayBuffer(bufferLength)
     const view = new DataView(arrayBuffer)
 
+    // Helper to write strings to DataView
     const writeString = (offset: number, str: string) => {
       for (let i = 0; i < str.length; i++) {
         view.setUint8(offset + i, str.charCodeAt(i))
       }
     }
 
+    // Write WAV header
     writeString(0, "RIFF")
-    view.setUint32(4, 36 + dataLength, true)
+    view.setUint32(4, 36 + dataLength, true) // File size - 8
     writeString(8, "WAVE")
-    writeString(12, "fmt ")
-    view.setUint32(16, 16, true)
-    view.setUint16(20, format, true)
-    view.setUint16(22, numChannels, true)
-    view.setUint32(24, sampleRate, true)
-    view.setUint32(28, sampleRate * blockAlign, true)
-    view.setUint16(32, blockAlign, true)
-    view.setUint16(34, bitDepth, true)
-    writeString(36, "data")
-    view.setUint32(40, dataLength, true)
+    writeString(12, "fmt ") // Format chunk identifier
+    view.setUint32(16, 16, true) // Format chunk size (16 for PCM)
+    view.setUint16(20, format, true) // Audio format (1 = PCM)
+    view.setUint16(22, numChannels, true) // Number of channels
+    view.setUint32(24, sampleRate, true) // Sample rate
+    view.setUint32(28, sampleRate * blockAlign, true) // Byte rate
+    view.setUint16(32, blockAlign, true) // Block align
+    view.setUint16(34, bitDepth, true) // Bits per sample
+    writeString(36, "data") // Data chunk identifier
+    view.setUint32(40, dataLength, true) // Subchunk2 size (data size)
 
+    // Write audio data
     let offset = 44
     for (let i = 0; i < buffer.length; i++) {
       for (let channel = 0; channel < numChannels; channel++) {
+        // Get sample value, clamp between -1 and 1, then scale to 16-bit integer
         const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]))
-        view.setInt16(offset, sample * 0x7fff, true)
-        offset += 2
+        view.setInt16(offset, sample * 0x7fff, true) // 0x7fff is the max value for a signed 16-bit integer
+        offset += 2 // 2 bytes per sample
       }
     }
 
     return new Blob([arrayBuffer], { type: "audio/wav" })
   }
 
-  const saveProject = () => {
+  const saveProject = (isAutoSave = false) => {
     if (!file || !audioUrl) {
-      addToast("No audio file to save", "warning")
+      if (!isAutoSave) addToast("No audio file to save", "warning")
       return
     }
 
@@ -437,14 +662,27 @@ export default function AudioCutter() {
       duration,
       startTime: startTimeRef.current,
       endTime: endTimeRef.current,
-      audioUrl,
+      audioUrl, // Note: Storing URL might be problematic if the object URL is revoked. For persistent storage, consider uploading to a server or using IndexedDB.
     }
 
-    setSavedProjects([project, ...savedProjects])
-    addToast("Project saved", "success")
+    // Update or add project
+    const existingIndex = savedProjects.findIndex((p) => p.name === project.name)
+    if (existingIndex >= 0) {
+      const updated = [...savedProjects]
+      updated[existingIndex] = project
+      setSavedProjects(updated)
+    } else {
+      setSavedProjects([project, ...savedProjects])
+    }
+
+    setLastSaved(new Date())
+    if (!isAutoSave) addToast("Project saved", "success")
   }
 
   const loadProject = async (project: SavedProject) => {
+    // Reset all states before loading a new project
+    resetFile()
+
     setAudioUrl(project.audioUrl)
     setDuration(project.duration)
     setStartTime(project.startTime)
@@ -454,19 +692,36 @@ export default function AudioCutter() {
     setProjectName(project.name)
 
     try {
+      // Fetch the audio data from the stored URL
       const response = await fetch(project.audioUrl)
+      if (!response.ok) throw new Error("Network response was not ok")
       const arrayBuffer = await response.arrayBuffer()
+
+      // Re-initialize AudioContext and decode audio data
       const audioContext = new AudioContext()
       audioContextRef.current = audioContext
       const buffer = await audioContext.decodeAudioData(arrayBuffer)
       setAudioBuffer(buffer)
-      generateWaveformData(buffer)
-      addToast("Project loaded", "success")
-    } catch {
-      addToast("Error loading project", "error")
-    }
 
-    setActiveTab("editor")
+      // Regenerate waveform and set analyser
+      generateWaveformData(buffer)
+      const analyser = audioContext.createAnalyser()
+      analyser.fftSize = 2048
+      analyserRef.current = analyser
+
+      // Initialize history for the loaded project
+      setHistory([])
+      setHistoryIndex(-1)
+      saveToHistory() // Save initial state of loaded project
+
+      setActiveTab("editor")
+      addToast("Project loaded successfully", "success")
+    } catch (error) {
+      console.error("Error loading project:", error)
+      addToast("Error loading project. The audio file might be missing or corrupted.", "error")
+      // Optionally clear the project if loading fails
+      // resetFile();
+    }
   }
 
   const deleteProject = (id: string) => {
@@ -487,7 +742,17 @@ export default function AudioCutter() {
     setProjectName("")
     setIsPlaying(false)
     setEffects(defaultEffects)
-    setActiveTab("home")
+    setHistory([]) // Clear history
+    setHistoryIndex(-1) // Reset history index
+    setPlaybackSpeed(1) // Reset playback speed
+    setWaveformOffset(0) // Reset waveform scroll offset
+    setIsDraggingStart(false) // Reset drag states
+    setIsDraggingEnd(false)
+    setActiveTab("home") // Return to home tab
+    // Revoke object URL if it exists to free up memory
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl)
+    }
   }
 
   const navItems = [
@@ -502,6 +767,106 @@ export default function AudioCutter() {
     <div className="min-h-screen flex flex-col bg-background pb-20">
       {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" muted={isMuted} />}
 
+      {showTutorial && (
+        <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="card-elevated max-w-lg w-full p-6 animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <Lightbulb className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Welcome to Modus Audio</h2>
+                <p className="text-xs text-muted-foreground">Your professional audio editing suite</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-sm mb-6">
+              <p>Get started in seconds:</p>
+              <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+                <li>Upload or drag & drop your audio file</li>
+                <li>Use the waveform to select the section you want</li>
+                <li>Apply professional effects from the Effects tab</li>
+                <li>Export in your preferred format</li>
+              </ol>
+              <p className="text-xs bg-primary/10 border border-primary/20 rounded-lg p-3 mt-4">
+                <strong className="text-primary">Pro Tip:</strong> Press{" "}
+                <kbd className="px-1.5 py-0.5 bg-card rounded text-[10px] font-mono">?</kbd> anytime to see all keyboard
+                shortcuts!
+              </p>
+            </div>
+
+            <Button onClick={() => setShowTutorial(false)} className="btn-primary w-full">
+              Got it, let's start!
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showKeyboardHelp && (
+        <div
+          className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setShowKeyboardHelp(false)}
+        >
+          <div
+            className="card-elevated max-w-2xl w-full p-6 animate-in fade-in zoom-in duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Keyboard Shortcuts</h2>
+              <Button variant="ghost" size="sm" onClick={() => setShowKeyboardHelp(false)} className="btn-icon">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {[
+                {
+                  category: "Playback",
+                  shortcuts: [
+                    { key: "Space", action: "Play / Pause" },
+                    { key: "← →", action: "Skip 5s" },
+                    { key: "Shift + ← →", action: "Skip 1s" },
+                    { key: "[ ]", action: "Playback speed" },
+                    { key: "M", action: "Mute" },
+                    { key: "L", action: "Loop" },
+                  ],
+                },
+                {
+                  category: "Editing",
+                  shortcuts: [
+                    { key: "S", action: "Set start" },
+                    { key: "E", action: "Set end" },
+                    { key: "B", action: "Add bookmark" },
+                    { key: "Cmd/Ctrl + Z", action: "Undo" },
+                    { key: "Cmd/Ctrl + Shift + Z", action: "Redo" },
+                    { key: "Cmd/Ctrl + S", action: "Save project" },
+                  ],
+                },
+                {
+                  category: "View",
+                  shortcuts: [
+                    { key: "V", action: "Toggle spectrum" },
+                    { key: "?", action: "Show this help" },
+                  ],
+                },
+              ].map((section, i) => (
+                <div key={i}>
+                  <h3 className="font-semibold mb-2 text-primary">{section.category}</h3>
+                  <div className="space-y-1.5">
+                    {section.shortcuts.map((shortcut, j) => (
+                      <div key={j} className="flex items-center justify-between">
+                        <kbd className="px-2 py-1 bg-secondary rounded text-xs font-mono">{shortcut.key}</kbd>
+                        <span className="text-muted-foreground text-xs">{shortcut.action}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-lg">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -515,11 +880,44 @@ export default function AudioCutter() {
           </div>
 
           <div className="flex items-center gap-2">
-            {file && (
-              <span className="badge badge-primary text-xs hidden sm:inline-flex">
-                {file.name.length > 15 ? file.name.slice(0, 15) + "..." : file.name}
-              </span>
+            {file && activeTab !== "home" && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
+                <div className="flex items-center gap-[1px] h-6">
+                  {waveformData.slice(0, 30).map((value, i) => (
+                    <div
+                      key={i}
+                      className="w-0.5 bg-primary/60 rounded-full"
+                      style={{ height: `${Math.max(4, value * 100)}%` }}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs font-mono">{formatTime(currentTime)}</span>
+              </div>
             )}
+
+            {file && (
+              <>
+                <span className="badge badge-primary text-xs hidden sm:inline-flex">
+                  {file.name.length > 15 ? file.name.slice(0, 15) + "..." : file.name}
+                </span>
+                {lastSaved && (
+                  <span className="text-[10px] text-muted-foreground hidden lg:inline">
+                    Saved {new Date(lastSaved).toLocaleTimeString()}
+                  </span>
+                )}
+              </>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowKeyboardHelp(true)}
+              className="btn-icon"
+              title="Keyboard shortcuts (?)"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
+
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="btn-icon">
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
@@ -536,7 +934,7 @@ export default function AudioCutter() {
             <div
               className={cn(
                 "card-elevated p-8 text-center transition-all duration-300 relative overflow-hidden",
-                isDragging && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                isDragging && "ring-2 ring-primary ring-offset-2 ring-offset-background scale-[1.02]",
               )}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -584,6 +982,34 @@ export default function AudioCutter() {
               </div>
             </div>
 
+            {recentFiles.length > 0 && (
+              <div className="card p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <History className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium">Recent Files</span>
+                </div>
+                <div className="space-y-2">
+                  {recentFiles.map((recent, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-2 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Music2 className="w-4 h-4 text-primary flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{recent.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{recent.size}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                        {new Date(recent.date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Features Grid - Compact */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
@@ -592,10 +1018,13 @@ export default function AudioCutter() {
                 { icon: Waves, label: "Waveform View", color: "from-blue-500 to-cyan-500" },
                 { icon: Download, label: "Multi-Format", color: "from-emerald-500 to-teal-500" },
               ].map((item, i) => (
-                <div key={i} className="card p-4 text-center group hover:border-primary/30 transition-colors">
+                <div
+                  key={i}
+                  className="card p-4 text-center group hover:border-primary/30 transition-all hover:-translate-y-1"
+                >
                   <div
                     className={cn(
-                      "w-10 h-10 mx-auto mb-2 rounded-xl bg-gradient-to-br flex items-center justify-center transition-transform group-hover:scale-110",
+                      "w-10 h-10 mx-auto mb-2 rounded-xl bg-gradient-to-br flex items-center justify-center transition-transform group-hover:scale-110 group-hover:rotate-3",
                       item.color,
                     )}
                   >
@@ -622,8 +1051,8 @@ export default function AudioCutter() {
                   <span>Set Start/End</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 bg-secondary/50 rounded-lg">
-                  <kbd className="px-1.5 py-0.5 bg-card rounded text-[10px] font-mono">B</kbd>
-                  <span>Add Bookmark</span>
+                  <kbd className="px-1.5 py-0.5 bg-card rounded text-[10px] font-mono">?</kbd>
+                  <span>Show Help</span>
                 </div>
               </div>
             </div>
@@ -633,17 +1062,40 @@ export default function AudioCutter() {
         {/* EDITOR TAB */}
         {activeTab === "editor" && file && (
           <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Project Header */}
             <div className="flex items-center justify-between gap-3">
-              <Input
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="input-field text-sm font-medium max-w-[200px]"
-                placeholder="Project name"
-              />
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={saveProject} className="btn-ghost text-xs">
-                  <BookmarkPlus className="w-3.5 h-3.5 mr-1" />
+                <Input
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className="input-field text-sm font-medium w-40"
+                  placeholder="Project name"
+                />
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={undo}
+                    disabled={historyIndex <= 0}
+                    className="btn-icon"
+                    title="Undo (Cmd+Z)"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={redo}
+                    disabled={historyIndex >= history.length - 1}
+                    className="btn-icon"
+                    title="Redo (Cmd+Shift+Z)"
+                  >
+                    <Redo2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => saveProject()} className="btn-ghost text-xs">
+                  <Save className="w-3.5 h-3.5 mr-1" />
                   Save
                 </Button>
                 <Button variant="ghost" size="sm" onClick={resetFile} className="btn-ghost text-xs text-destructive">
@@ -652,6 +1104,35 @@ export default function AudioCutter() {
                 </Button>
               </div>
             </div>
+
+            {showSpectrum && (
+              <div className="card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Live Spectrum</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowSpectrum(false)} className="btn-icon p-1">
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+                <div className="h-20 bg-secondary/50 rounded-lg flex items-end justify-center gap-[2px] p-2">
+                  {/* Render spectrum bars from frequencyData */}
+                  {Array.from(frequencyData.slice(0, 64)).map(
+                    (
+                      value,
+                      i, // Limit to 64 bars for better visibility
+                    ) => (
+                      <div
+                        key={i}
+                        className="w-1 bg-gradient-to-t from-primary to-accent rounded-full transition-all duration-75"
+                        style={{ height: `${Math.max(4, (value / 255) * 100)}%` }} // Normalize value to 0-100% height
+                      />
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Waveform */}
             <div className="card p-4">
@@ -662,6 +1143,17 @@ export default function AudioCutter() {
                   <span className="badge badge-primary text-[10px]">{formatTime(duration)}</span>
                 </div>
                 <div className="flex items-center gap-1">
+                  {!showSpectrum && ( // Only show spectrum toggle if spectrum is not visible
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSpectrum(true)}
+                      className="btn-icon p-1.5"
+                      title="Show spectrum (V)"
+                    >
+                      <BarChart3 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -685,7 +1177,7 @@ export default function AudioCutter() {
               </div>
 
               <div
-                className="relative h-28 bg-secondary/50 rounded-xl overflow-hidden cursor-pointer"
+                className="relative h-32 bg-secondary/50 rounded-xl overflow-hidden cursor-pointer"
                 onClick={handleWaveformClick}
               >
                 {/* Selection highlight */}
@@ -724,19 +1216,41 @@ export default function AudioCutter() {
                   })}
                 </div>
 
+                <div
+                  className="absolute top-0 bottom-0 w-1 bg-green-500 cursor-ew-resize z-20 group"
+                  style={{ left: `${(startTime / duration) * 100}%` }}
+                  onMouseDown={() => setIsDraggingStart(true)}
+                >
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-green-500 rounded-full group-hover:scale-125 transition-transform" />
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-1.5 py-0.5 bg-green-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Start: {formatTime(startTime)}
+                  </div>
+                </div>
+
+                <div
+                  className="absolute top-0 bottom-0 w-1 bg-red-500 cursor-ew-resize z-20 group"
+                  style={{ left: `${(endTime / duration) * 100}%` }}
+                  onMouseDown={() => setIsDraggingEnd(true)}
+                >
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full group-hover:scale-125 transition-transform" />
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-1.5 py-0.5 bg-red-500 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    End: {formatTime(endTime)}
+                  </div>
+                </div>
+
                 {/* Playhead */}
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-accent z-10"
                   style={{ left: `${(currentTime / duration) * 100}%` }}
                 >
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-accent rounded-full" />
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-accent rounded-full shadow-lg shadow-accent/50" />
                 </div>
 
                 {/* Bookmarks */}
                 {bookmarks.map((bookmark) => (
                   <div
                     key={bookmark.id}
-                    className="absolute top-0 bottom-0 w-0.5 cursor-pointer z-20"
+                    className="absolute top-0 bottom-0 w-0.5 cursor-pointer z-20 group"
                     style={{ left: `${(bookmark.time / duration) * 100}%`, backgroundColor: bookmark.color }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -744,7 +1258,7 @@ export default function AudioCutter() {
                     }}
                   >
                     <div
-                      className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full"
+                      className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full group-hover:scale-150 transition-transform"
                       style={{ backgroundColor: bookmark.color }}
                     />
                   </div>
@@ -758,48 +1272,91 @@ export default function AudioCutter() {
               </div>
             </div>
 
-            {/* Transport Controls */}
             <div className="card p-4">
-              <div className="flex items-center justify-center gap-2">
-                <Button variant="ghost" size="sm" onClick={() => seekTo(startTime)} className="btn-icon">
-                  <SkipBack className="w-4 h-4" />
-                </Button>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => seekTo(startTime)} className="btn-icon">
+                    <SkipBack className="w-4 h-4" />
+                  </Button>
 
-                <Button onClick={togglePlayPause} className="btn-primary w-12 h-12 rounded-full p-0">
-                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => seekTo(Math.max(0, currentTime - 5))}
+                    className="btn-icon"
+                  >
+                    <Rewind className="w-4 h-4" />
+                  </Button>
 
-                <Button variant="ghost" size="sm" onClick={() => seekTo(endTime)} className="btn-icon">
-                  <SkipForward className="w-4 h-4" />
-                </Button>
+                  <Button
+                    onClick={togglePlayPause}
+                    className="btn-primary w-12 h-12 rounded-full p-0 shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
+                  >
+                    {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                  </Button>
 
-                <div className="w-px h-6 bg-border mx-2" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => seekTo(Math.min(duration, currentTime + 5))}
+                    className="btn-icon"
+                  >
+                    <FastForward className="w-4 h-4" />
+                  </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsLooping(!isLooping)}
-                  className={cn("btn-icon", isLooping && "bg-primary/20 text-primary")}
-                >
-                  <Repeat className="w-4 h-4" />
-                </Button>
+                  <Button variant="ghost" size="sm" onClick={() => seekTo(endTime)} className="btn-icon">
+                    <SkipForward className="w-4 h-4" />
+                  </Button>
 
-                <Button variant="ghost" size="sm" onClick={() => setIsMuted(!isMuted)} className="btn-icon">
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </Button>
+                  <div className="w-px h-6 bg-border mx-2" />
 
-                <Slider
-                  value={[isMuted ? 0 : volume]}
-                  onValueChange={(v) => {
-                    setVolume(v[0])
-                    setIsMuted(v[0] === 0)
-                    if (audioRef.current) audioRef.current.volume = v[0]
-                  }}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  className="w-20"
-                />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsLooping(!isLooping)}
+                    className={cn("btn-icon", isLooping && "bg-primary/20 text-primary")}
+                  >
+                    <Repeat className="w-4 h-4" />
+                  </Button>
+
+                  <Button variant="ghost" size="sm" onClick={() => setIsMuted(!isMuted)} className="btn-icon">
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </Button>
+
+                  <Slider
+                    value={[isMuted ? 0 : volume]}
+                    onValueChange={(v) => {
+                      setVolume(v[0])
+                      setIsMuted(v[0] === 0)
+                      if (audioRef.current) audioRef.current.volume = v[0]
+                    }}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    className="w-20"
+                  />
+                </div>
+
+                {/* Playback Speed Control */}
+                <div className="flex items-center justify-center gap-3">
+                  <span className="text-xs text-muted-foreground w-20">Speed:</span>
+                  <div className="flex items-center gap-2">
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                      <button
+                        key={speed}
+                        onClick={() => setPlaybackSpeed(speed)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
+                          playbackSpeed === speed
+                            ? "bg-primary text-primary-foreground shadow-lg"
+                            : "bg-secondary hover:bg-secondary/80",
+                        )}
+                      >
+                        {speed}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -808,6 +1365,7 @@ export default function AudioCutter() {
               <div className="flex items-center gap-2 mb-3">
                 <Scissors className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium">Selection</span>
+                <span className="badge badge-accent text-[10px] ml-auto">{formatTime(endTime - startTime)}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -820,7 +1378,16 @@ export default function AudioCutter() {
                       readOnly
                       className="input-field text-sm font-mono"
                     />
-                    <Button variant="ghost" size="sm" onClick={() => setStartTime(currentTime)} className="btn-icon">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setStartTime(currentTime)
+                        saveToHistory()
+                      }}
+                      className="btn-icon"
+                      title="Set start (S)"
+                    >
                       <BookmarkIcon className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -829,7 +1396,16 @@ export default function AudioCutter() {
                   <Label className="text-xs text-muted-foreground">End Time</Label>
                   <div className="flex items-center gap-2 mt-1">
                     <Input type="text" value={formatTime(endTime)} readOnly className="input-field text-sm font-mono" />
-                    <Button variant="ghost" size="sm" onClick={() => setEndTime(currentTime)} className="btn-icon">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEndTime(currentTime)
+                        saveToHistory()
+                      }}
+                      className="btn-icon"
+                      title="Set end (E)"
+                    >
                       <BookmarkIcon className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -843,6 +1419,7 @@ export default function AudioCutter() {
                     action: () => {
                       setStartTime(0)
                       setEndTime(Math.min(10, duration))
+                      saveToHistory()
                     },
                   },
                   {
@@ -850,6 +1427,7 @@ export default function AudioCutter() {
                     action: () => {
                       setStartTime(Math.max(0, duration - 10))
                       setEndTime(duration)
+                      saveToHistory()
                     },
                   },
                   {
@@ -857,6 +1435,7 @@ export default function AudioCutter() {
                     action: () => {
                       setStartTime(0)
                       setEndTime(duration)
+                      saveToHistory()
                     },
                   },
                   {
@@ -864,10 +1443,17 @@ export default function AudioCutter() {
                     action: () => {
                       setStartTime(0)
                       setEndTime(duration)
+                      saveToHistory()
                     },
                   },
                 ].map((preset, i) => (
-                  <Button key={i} variant="ghost" size="sm" onClick={preset.action} className="btn-ghost text-xs">
+                  <Button
+                    key={i}
+                    variant="ghost"
+                    size="sm"
+                    onClick={preset.action}
+                    className="btn-ghost text-xs hover:scale-105 transition-transform"
+                  >
                     {preset.label}
                   </Button>
                 ))}
@@ -881,8 +1467,15 @@ export default function AudioCutter() {
                   <div className="flex items-center gap-2">
                     <BookmarkIcon className="w-4 h-4 text-primary" />
                     <span className="text-sm font-medium">Bookmarks</span>
+                    <span className="badge badge-primary text-[10px]">{bookmarks.length}</span>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={addBookmark} className="btn-ghost text-xs">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={addBookmark}
+                    className="btn-ghost text-xs"
+                    title="Add bookmark (B)"
+                  >
                     <BookmarkPlus className="w-3.5 h-3.5 mr-1" />
                     Add
                   </Button>
@@ -892,16 +1485,17 @@ export default function AudioCutter() {
                     <button
                       key={bookmark.id}
                       onClick={() => seekTo(bookmark.time)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 bg-secondary rounded-lg text-xs hover:bg-secondary/80 transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-secondary rounded-lg text-xs hover:bg-secondary/80 transition-all hover:scale-105 active:scale-95"
                     >
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: bookmark.color }} />
-                      <span>{formatTime(bookmark.time)}</span>
+                      <span className="font-mono">{formatTime(bookmark.time)}</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           setBookmarks(bookmarks.filter((b) => b.id !== bookmark.id))
+                          saveToHistory()
                         }}
-                        className="ml-1 text-muted-foreground hover:text-destructive"
+                        className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -916,6 +1510,27 @@ export default function AudioCutter() {
         {/* EFFECTS TAB */}
         {activeTab === "effects" && file && (
           <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">Quick Presets</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(effectPresets).map((preset) => (
+                  <Button
+                    key={preset}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => applyEffectPreset(preset as keyof typeof effectPresets)}
+                    className="btn-ghost text-xs capitalize hover:scale-105 transition-transform"
+                  >
+                    <Zap className="w-3 h-3 mr-1" />
+                    {preset}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             {/* EQ */}
             <div className="card p-4">
               <div className="flex items-center gap-2 mb-4">
@@ -953,7 +1568,7 @@ export default function AudioCutter() {
             {/* Effects Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Compressor */}
-              <div className="card p-4">
+              <div className="card p-4 hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <Gauge className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Compressor</span>
@@ -983,7 +1598,7 @@ export default function AudioCutter() {
               </div>
 
               {/* Reverb */}
-              <div className="card p-4">
+              <div className="card p-4 hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <Radio className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Reverb</span>
@@ -1013,7 +1628,7 @@ export default function AudioCutter() {
               </div>
 
               {/* Delay */}
-              <div className="card p-4">
+              <div className="card p-4 hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <Timer className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Delay</span>
@@ -1046,7 +1661,7 @@ export default function AudioCutter() {
               </div>
 
               {/* Filters */}
-              <div className="card p-4">
+              <div className="card p-4 hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <Filter className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Filters</span>
@@ -1076,7 +1691,7 @@ export default function AudioCutter() {
               </div>
 
               {/* Modulation */}
-              <div className="card p-4">
+              <div className="card p-4 hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <Orbit className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Modulation</span>
@@ -1106,7 +1721,7 @@ export default function AudioCutter() {
               </div>
 
               {/* Distortion & Width */}
-              <div className="card p-4">
+              <div className="card p-4 hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <Flame className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Drive & Width</span>
@@ -1137,7 +1752,15 @@ export default function AudioCutter() {
             </div>
 
             {/* Reset Button */}
-            <Button variant="ghost" onClick={() => setEffects(defaultEffects)} className="btn-ghost w-full">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setEffects(defaultEffects)
+                saveToHistory()
+                addToast("Effects reset", "info")
+              }}
+              className="btn-ghost w-full hover:scale-105 transition-transform"
+            >
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset All Effects
             </Button>
@@ -1203,29 +1826,44 @@ export default function AudioCutter() {
                   <Slider value={[fadeOut]} onValueChange={(v) => setFadeOut(v[0])} min={0} max={5} step={0.1} />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Normalize Audio</Label>
+                <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
+                  <div>
+                    <Label className="text-xs font-medium">Normalize Audio</Label>
+                    <p className="text-[10px] text-muted-foreground">Maximize volume without clipping</p>
+                  </div>
                   <Switch checked={normalize} onCheckedChange={setNormalize} />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Trim Silence</Label>
+                <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
+                  <div>
+                    <Label className="text-xs font-medium">Trim Silence</Label>
+                    <p className="text-[10px] text-muted-foreground">Remove silence from start/end</p>
+                  </div>
                   <Switch checked={trimSilence} onCheckedChange={setTrimSilence} />
                 </div>
               </div>
             </div>
 
-            <div className="card p-4 bg-primary/5 border-primary/20">
+            <div className="card p-4 bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
               <div className="text-center">
                 <p className="text-sm font-medium mb-1">Selection Duration</p>
-                <p className="text-2xl font-bold text-gradient">{formatTime(endTime - startTime)}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatTime(startTime)} → {formatTime(endTime)}
+                <p className="text-3xl font-bold text-gradient">{formatTime(endTime - startTime)}</p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  From {formatTime(startTime)} to {formatTime(endTime)}
                 </p>
+                <div className="flex items-center justify-center gap-4 mt-3 text-xs text-muted-foreground">
+                  <span>Format: {exportFormat.toUpperCase()}</span>
+                  <span>•</span>
+                  <span>Quality: {exportQuality}</span>
+                </div>
               </div>
             </div>
 
-            <Button onClick={exportAudio} disabled={isProcessing} className="btn-primary w-full">
+            <Button
+              onClick={exportAudio}
+              disabled={isProcessing}
+              className="btn-primary w-full hover:scale-105 transition-transform active:scale-95"
+            >
               {isProcessing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
@@ -1252,6 +1890,17 @@ export default function AudioCutter() {
               <span className="text-xs text-muted-foreground">{savedProjects.length} projects</span>
             </div>
 
+            <div className="card p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" />
+                <div>
+                  <Label className="text-xs font-medium">Auto-Save</Label>
+                  <p className="text-[10px] text-muted-foreground">Automatically save every minute</p>
+                </div>
+              </div>
+              <Switch checked={autoSaveEnabled} onCheckedChange={setAutoSaveEnabled} />
+            </div>
+
             {savedProjects.length === 0 ? (
               <div className="card p-8 text-center">
                 <Folder className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
@@ -1261,9 +1910,12 @@ export default function AudioCutter() {
             ) : (
               <div className="space-y-2">
                 {savedProjects.map((project) => (
-                  <div key={project.id} className="card p-3 flex items-center justify-between gap-3">
+                  <div
+                    key={project.id}
+                    className="card p-3 flex items-center justify-between gap-3 hover:border-primary/30 transition-all hover:scale-[1.02]"
+                  >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
                         <Music2 className="w-5 h-5 text-primary" />
                       </div>
                       <div className="min-w-0">
@@ -1274,14 +1926,19 @@ export default function AudioCutter() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => loadProject(project)} className="btn-icon">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => loadProject(project)}
+                        className="btn-icon hover:scale-110 transition-transform"
+                      >
                         <Play className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => deleteProject(project.id)}
-                        className="btn-icon text-destructive"
+                        className="btn-icon text-destructive hover:scale-110 transition-transform"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1298,7 +1955,10 @@ export default function AudioCutter() {
           <div className="card p-8 text-center animate-in fade-in duration-300">
             <Music2 className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">No audio file loaded</p>
-            <Button className="btn-primary mt-4" onClick={() => setActiveTab("home")}>
+            <Button
+              className="btn-primary mt-4 hover:scale-105 transition-transform"
+              onClick={() => setActiveTab("home")}
+            >
               <Upload className="w-4 h-4 mr-2" />
               Load Audio
             </Button>
@@ -1307,7 +1967,7 @@ export default function AudioCutter() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg shadow-2xl">
         <div className="container mx-auto px-2">
           <div className="flex items-center justify-around h-16">
             {navItems.map((item) => (
@@ -1316,16 +1976,19 @@ export default function AudioCutter() {
                 onClick={() => !item.disabled && setActiveTab(item.id)}
                 disabled={item.disabled}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[60px]",
+                  "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[60px] relative",
                   activeTab === item.id
-                    ? "text-primary bg-primary/10"
+                    ? "text-primary bg-primary/10 scale-110"
                     : item.disabled
                       ? "text-muted-foreground/30 cursor-not-allowed"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary hover:scale-105",
                 )}
               >
                 <item.icon className="w-5 h-5" />
                 <span className="text-[10px] font-medium">{item.label}</span>
+                {activeTab === item.id && (
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+                )}
               </button>
             ))}
           </div>
