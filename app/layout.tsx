@@ -9,8 +9,23 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 export const metadata = {
   title: "Modus Audio - Professional Audio Editor",
   description:
-    "Cut, edit, and transform your audio with studio-grade precision. Free browser-based audio editor with real-time effects.",
-  keywords: ["audio editor", "audio cutter", "sound editor", "music editor", "audio effects"],
+    "Cut, edit, and transform your audio with studio-grade precision. Free browser-based audio editor with real-time effects, waveform visualization, and professional processing tools.",
+  keywords: [
+    "audio editor",
+    "audio cutter",
+    "sound editor",
+    "music editor",
+    "audio effects",
+    "waveform editor",
+    "audio processing",
+    "free audio editor",
+  ],
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
     generator: 'v0.app'
 }
 

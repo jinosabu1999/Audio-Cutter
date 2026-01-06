@@ -1,57 +1,57 @@
+/* Cache buster: v2.0.1 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    /* Modern blue/purple gradient color scheme */
     --background: 0 0% 100%;
     --foreground: 224 71% 4%;
     --card: 0 0% 100%;
     --card-foreground: 224 71% 4%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71% 4%;
-    --primary: 252 80% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 20% 98%;
     --secondary: 220 14% 96%;
     --secondary-foreground: 224 71% 4%;
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
-    --accent: 330 80% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 210 20% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 252 80% 60%;
+    --ring: 262 83% 58%;
     --radius: 0.75rem;
-    --success: 142 76% 36%;
+    --success: 142 71% 45%;
     --warning: 38 92% 50%;
-    --info: 199 89% 48%;
   }
 
   .dark {
     --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --card: 224 50% 8%;
-    --card-foreground: 213 31% 91%;
-    --popover: 224 50% 8%;
-    --popover-foreground: 213 31% 91%;
-    --primary: 252 80% 65%;
-    --primary-foreground: 224 71% 4%;
-    --secondary: 223 30% 12%;
-    --secondary-foreground: 213 31% 91%;
-    --muted: 223 30% 12%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 330 80% 65%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 223 25% 16%;
-    --input: 223 25% 16%;
-    --ring: 252 80% 65%;
-    --success: 142 70% 45%;
-    --warning: 38 85% 55%;
-    --info: 199 85% 55%;
+    --foreground: 210 20% 98%;
+    --card: 224 71% 8%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71% 8%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 263 70% 65%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 217 11% 65%;
+    --accent: 217 91% 65%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 263 70% 65%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
   }
 }
 
@@ -66,44 +66,52 @@
 }
 
 @layer components {
+  /* Simplified button classes with native CSS for dimensions */
   .btn-primary {
-    @apply bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 font-semibold transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98];
+    @apply bg-gradient-to-r from-primary to-accent text-white rounded-xl px-5 py-2.5 font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 flex items-center justify-center gap-2;
+    min-height: 44px;
   }
 
   .btn-secondary {
-    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl px-5 py-2.5 font-semibold transition-all duration-200 active:scale-[0.98];
+    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl px-5 py-2.5 font-medium transition-all duration-200 active:scale-95 flex items-center justify-center gap-2;
+    min-height: 44px;
   }
 
   .btn-ghost {
-    @apply bg-transparent hover:bg-secondary text-foreground rounded-xl px-4 py-2 font-medium transition-all duration-200 active:scale-[0.98];
+    @apply bg-transparent hover:bg-secondary text-foreground rounded-lg px-3 py-2 font-medium transition-all duration-200 active:scale-95;
   }
 
   .btn-icon {
-    @apply p-2.5 rounded-xl hover:bg-secondary transition-all duration-200 active:scale-95;
+    @apply p-2.5 rounded-xl hover:bg-secondary transition-all duration-200 active:scale-90 flex items-center justify-center;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .card {
-    @apply bg-card rounded-2xl border border-border shadow-sm;
+    @apply bg-card rounded-2xl border border-border shadow-sm p-4;
   }
 
   .card-elevated {
-    @apply bg-card rounded-2xl border border-border shadow-xl;
+    @apply bg-card rounded-xl border border-border shadow-lg;
   }
 
   .panel {
-    @apply bg-secondary/50 rounded-xl p-4 border border-border/50;
+    @apply bg-secondary/50 rounded-lg p-3 border border-border/50;
   }
 
   .input-field {
-    @apply rounded-xl border border-border px-4 py-2.5 transition-all duration-200 focus:ring-2 focus:ring-primary/30 focus:border-primary bg-background text-foreground;
+    @apply rounded-lg border border-border px-3 py-2;
+    @apply transition-all duration-200;
+    @apply focus:ring-2 focus:ring-primary/30 focus:border-primary;
+    @apply bg-background text-foreground;
   }
 
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold;
   }
 
   .badge-primary {
-    @apply bg-primary/15 text-primary;
+    @apply bg-primary/10 text-primary border border-primary/20;
   }
 
   .badge-accent {
@@ -111,7 +119,7 @@
   }
 
   .text-gradient {
-    @apply bg-gradient-to-r from-primary via-violet-500 to-accent bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }
 
@@ -125,55 +133,13 @@
   }
 }
 
-@keyframes pulse-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-  }
-  50% {
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.5);
-  }
-}
-
-@keyframes wave {
-  0%,
-  100% {
-    transform: scaleY(0.5);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-.animate-wave {
-  animation: wave 1s ease-in-out infinite;
-}
-
-.wave-delay-1 {
-  animation-delay: 0.1s;
-}
-.wave-delay-2 {
-  animation-delay: 0.2s;
-}
-.wave-delay-3 {
-  animation-delay: 0.3s;
-}
-.wave-delay-4 {
-  animation-delay: 0.4s;
-}
-.wave-delay-5 {
-  animation-delay: 0.5s;
-}
 
 .scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
@@ -181,5 +147,5 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/20 rounded-full;
+  @apply bg-muted-foreground/30 rounded-full;
 }
