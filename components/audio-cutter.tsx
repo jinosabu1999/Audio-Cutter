@@ -36,6 +36,10 @@ export default function AudioCutter() {
   const [bookmarks, setBookmarks] = useState<AudioBookmark[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [waveformData, setWaveformData] = useState<number[]>([])
+  const [selectedFormat, setSelectedFormat] = useState("wav")
+  const [fadeIn, setFadeIn] = useState(0)
+  const [fadeOut, setFadeOut] = useState(0)
+  const [normalize, setNormalize] = useState(false)
 
   // Auto-set end time when audio loads
   useEffect(() => {
@@ -397,69 +401,120 @@ export default function AudioCutter() {
 
         {activeTab === "export" && file && (
           <div className="animate-fadeIn space-y-8">
-            <div className="card">
-              <h3 className="text-xl font-semibold mb-6">Export Options</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Volume</label>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="card">
+                <h3 className="text-lg font-semibold mb-4">Audio Format</h3>
+                <select
+                  value={selectedFormat}
+                  onChange={(e) => setSelectedFormat(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="wav">WAV (Lossless)</option>
+                  <option value="mp3">MP3 (Compressed)</option>
+                  <option value="ogg">OGG (Open Format)</option>
+                  <option value="m4a">M4A (Apple)</option>
+                </select>
+              </div>
+
+              <div className="card">
+                <h3 className="text-lg font-semibold mb-4">Audio Enhancement</h3>
+                <label className="flex items-center gap-3 cursor-pointer">
                   <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={volume}
-                    onChange={(e) => setVolume(parseFloat(e.target.value))}
-                    className="w-full"
+                    type="checkbox"
+                    checked={normalize}
+                    onChange={(e) => setNormalize(e.target.checked)}
+                    className="w-4 h-4 rounded"
                   />
-                </div>
-                <button onClick={handleCutAudio} disabled={isProcessing} className="btn-primary w-full">
-                  {isProcessing ? (
-                    <>
-                      <Loader className="w-5 h-5 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-5 h-5" />
-                      Cut & Export
-                    </>
-                  )}
-                </button>
+                  <span className="text-sm">Normalize audio levels</span>
+                </label>
+              </div>
+
+              <div className="card">
+                <h3 className="text-lg font-semibold mb-4">Fade In (seconds)</h3>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={fadeIn}
+                  onChange={(e) => setFadeIn(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                <p className="text-sm text-slate-400 mt-2">{fadeIn.toFixed(1)}s</p>
+              </div>
+
+              <div className="card">
+                <h3 className="text-lg font-semibold mb-4">Fade Out (seconds)</h3>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={fadeOut}
+                  onChange={(e) => setFadeOut(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+                <p className="text-sm text-slate-400 mt-2">{fadeOut.toFixed(1)}s</p>
               </div>
             </div>
+
+            <div className="card">
+              <h3 className="text-lg font-semibold mb-4">Volume</h3>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={volume}
+                onChange={(e) => setVolume(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-sm text-slate-400 mt-2">{(volume * 100).toFixed(0)}%</p>
+            </div>
+
+            <button onClick={handleCutAudio} disabled={isProcessing} className="btn-primary w-full py-3 text-lg">
+              {isProcessing ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5" />
+                  Cut & Export as {selectedFormat.toUpperCase()}
+                </>
+              )}
+            </button>
           </div>
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-800 bg-slate-950/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-around h-16">
+      {/* Floating Bottom Navigation - iOS Style */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+        <nav className="flex items-center gap-2 px-2 py-3 bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-full shadow-2xl">
           {[
             { id: "home", label: "Home", icon: Home },
             { id: "editor", label: "Editor", icon: Sliders, disabled: !file },
             { id: "export", label: "Export", icon: Download, disabled: !file }
-          ].map((tab) => (
+          ].map((tab, idx) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               disabled={tab.disabled}
-              className={`flex flex-col items-center gap-1 p-2 text-xs font-medium transition-all ${
+              className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-full transition-all duration-300 ${
                 activeTab === tab.id
-                  ? "text-blue-400"
+                  ? "bg-blue-500/20 text-blue-400"
                   : tab.disabled
-                  ? "text-slate-600 cursor-not-allowed"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "text-slate-600 cursor-not-allowed opacity-50"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
               }`}
             >
-              <tab.icon className="w-6 h-6" />
-              {tab.label}
+              <tab.icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{tab.label}</span>
             </button>
           ))}
-        </div>
-      </nav>
-
-      {/* Padding for fixed nav */}
-      <div className="h-20" />
+        </nav>
+      </div>
     </div>
   )
 }
