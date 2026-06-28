@@ -1,26 +1,26 @@
-/* v3.0 - Professional Dark Theme Audio Editor */
+/* v4.0 - Modern 2026 Pro Audio Editor */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 8%;
-    --foreground: 0 0% 95%;
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 95%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 8%;
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 95%;
-    --accent: 280 85% 56%;
-    --accent-foreground: 0 0% 95%;
-    --muted: 0 0% 25%;
-    --muted-foreground: 0 0% 65%;
-    --border: 0 0% 20%;
-    --input: 0 0% 15%;
-    --ring: 217 91% 60%;
-    --success: 142 71% 45%;
+    --background: 0 0% 5.5%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 98%;
+    --primary: 200 98% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --accent: 280 98% 50%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 0 0% 30%;
+    --muted-foreground: 0 0% 60%;
+    --border: 0 0% 18%;
+    --input: 0 0% 12%;
+    --ring: 200 98% 39%;
+    --success: 142 76% 36%;
     --warning: 38 92% 50%;
     --destructive: 0 84% 60%;
   }
@@ -43,103 +43,46 @@
 
 @layer components {
   .btn-primary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    min-height: 44px;
-    padding: 0.625rem 1.25rem;
-    background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(280 85% 56%) 100%);
-    color: white;
-    border-radius: 0.75rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-    border: none;
-    cursor: pointer;
-  }
-  
-  .btn-primary:hover {
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-    transform: translateY(-2px);
-  }
-  
-  .btn-primary:active {
-    transform: translateY(0);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    @apply inline-flex items-center justify-center gap-2 h-11 px-5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md;
   }
 
   .btn-secondary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    min-height: 44px;
-    padding: 0.625rem 1.25rem;
-    background-color: hsl(0 0% 18%);
-    color: hsl(0 0% 95%);
-    border: 1px solid hsl(0 0% 25%);
-    border-radius: 0.75rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    cursor: pointer;
-  }
-  
-  .btn-secondary:hover {
-    background-color: hsl(0 0% 22%);
-    border-color: hsl(0 0% 30%);
+    @apply inline-flex items-center justify-center gap-2 h-11 px-5 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-medium rounded-lg transition-all duration-200;
   }
 
   .btn-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0.5rem;
-    background-color: transparent;
-    color: hsl(0 0% 95%);
-    border-radius: 0.75rem;
-    transition: all 0.2s ease;
-    cursor: pointer;
-  }
-  
-  .btn-icon:hover {
-    background-color: hsl(0 0% 18%);
+    @apply inline-flex items-center justify-center w-11 h-11 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors duration-200;
   }
 
   .card {
-    background-color: hsl(0 0% 12%);
-    border: 1px solid hsl(0 0% 20%);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    @apply bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg;
   }
 
   .input-field {
-    background-color: hsl(0 0% 15%);
-    border: 1px solid hsl(0 0% 25%);
-    border-radius: 0.75rem;
-    padding: 0.75rem 1rem;
-    color: hsl(0 0% 95%);
-    transition: all 0.2s ease;
+    @apply w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-slate-100 placeholder-slate-500 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20;
   }
-  
-  .input-field:focus {
-    outline: none;
-    border-color: hsl(217 91% 60%);
-    box-shadow: 0 0 0 3px rgba(34, 197, 224, 0.1);
+
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply bg-blue-500/15 text-blue-300 border border-blue-500/30;
+  }
+
+  .badge-accent {
+    @apply bg-purple-500/15 text-purple-300 border border-purple-500/30;
   }
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes slideIn {
+@keyframes slideInUp {
   from {
-    transform: translateY(10px);
+    transform: translateY(20px);
     opacity: 0;
   }
   to {
@@ -148,10 +91,19 @@
   }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
 }
 
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out;
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slideInUp {
+  animation: slideInUp 0.5s ease-out;
+}
+
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
 }
