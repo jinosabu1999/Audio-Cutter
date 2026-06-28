@@ -10,6 +10,12 @@ import { formatTime } from "@/lib/time-utils"
 import { ThemeToggle } from "@/components/ui/theme-context"
 import { useToast } from "@/components/ui/toast-provider"
 
+interface AudioBookmark {
+  id: string
+  time: number
+  label: string
+}
+
 export default function AudioCutter() {
   const { addToast } = useToast()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -25,8 +31,10 @@ export default function AudioCutter() {
   const [activeTab, setActiveTab] = useState<"home" | "editor" | "export">("home")
   const [isProcessing, setIsProcessing] = useState(false)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [bookmarks, setBookmarks] = useState<AudioBookmark[]>([])
+  const [canvasRef] = useState<HTMLCanvasElement | null>(null)
+  const [waveformData, setWaveformData] = useState<number[]>([])
 
-  // Auto-set end time when audio loads
   useEffect(() => {
     if (audioRef.current && duration > 0 && endTime === 0) {
       setEndTime(duration)
@@ -77,26 +85,6 @@ export default function AudioCutter() {
         setIsPlaying(false)
       }
     }
-  }
-
-  const drawWaveform = async () => {
-    if (!audioRef.current || !canvasRef.current) return
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-    const analyser = audioContext.createAnalyser()
-    analyser.fftSize = 2048
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount)
-    const bars = 100
-    const barData: number[] = []
-
-    for (let i = 0; i < bars; i++) {
-      barData.push(Math.random() * 100)
-    }
-    setWaveformData(barData)
   }
 
   const handleCutAudio = async () => {
@@ -150,7 +138,6 @@ export default function AudioCutter() {
     const bytesPerSample = bitDepth / 8
     const blockAlign = numberOfChannels * bytesPerSample
 
-    let offset = 0
     let pos = 0
 
     const setUint16 = (data: DataView, byteOffset: number, value: number) => {
@@ -221,7 +208,7 @@ export default function AudioCutter() {
   }
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] transition-colors duration-300">
+    <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: "hsl(var(--background))", color: "hsl(var(--foreground))" }}>
       {audioUrl && (
         <audio
           ref={audioRef}
@@ -234,7 +221,7 @@ export default function AudioCutter() {
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 backdrop-blur-md" style={{ borderBottom: "1px solid hsl(var(--border))", backgroundColor: "hsla(var(--card), 0.8)" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
@@ -263,24 +250,24 @@ export default function AudioCutter() {
               <h2 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 Professional Audio Editing
               </h2>
-              <p className="text-[hsl(var(--muted-foreground))] text-base sm:text-lg max-w-2xl mx-auto">
+              <p className="text-base sm:text-lg max-w-2xl mx-auto" style={{ color: "hsl(var(--muted-foreground))" }}>
                 Cut, trim, and enhance your audio with precision. Fast, simple, and powerful.
               </p>
             </div>
 
             {/* Upload Area */}
             <div className="card space-y-4">
-              <label className="flex flex-col items-center justify-center gap-4 p-8 sm:p-12 cursor-pointer hover:bg-[hsl(var(--secondary))]/50 rounded-lg transition-all duration-200 border-2 border-dashed border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]">
-                <div className="w-16 h-16 rounded-full bg-[hsl(var(--primary))]/15 flex items-center justify-center">
-                  <Upload className="w-8 h-8 text-[hsl(var(--primary))]" />
+              <label className="flex flex-col items-center justify-center gap-4 p-8 sm:p-12 cursor-pointer rounded-lg transition-all duration-200 border-2 border-dashed" style={{ borderColor: "hsl(var(--border))" }}>
+                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "hsla(var(--primary), 0.15)" }}>
+                  <Upload className="w-8 h-8" style={{ color: "hsl(var(--primary))" }} />
                 </div>
                 <div className="text-center">
                   <p className="font-semibold mb-1">Upload audio file</p>
-                  <p className="text-[hsl(var(--muted-foreground))] text-sm">Drag and drop or click to select</p>
+                  <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>Drag and drop or click to select</p>
                 </div>
                 <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
               </label>
-              {file && <p className="text-center text-[hsl(var(--primary))] font-medium">{file.name}</p>}
+              {file && <p className="text-center font-medium" style={{ color: "hsl(var(--primary))" }}>{file.name}</p>}
             </div>
 
             {/* Features Grid */}
@@ -291,11 +278,11 @@ export default function AudioCutter() {
                 { icon: Volume2, title: "Volume Control", desc: "Adjust levels easily" }
               ].map((f, i) => (
                 <div key={i} className="card flex flex-col items-center text-center space-y-3 hover:shadow-lg transition-all duration-300">
-                  <div className="w-12 h-12 rounded-lg bg-[hsl(var(--primary))]/15 flex items-center justify-center">
-                    <f.icon className="w-6 h-6 text-[hsl(var(--primary))]" />
+                  <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "hsla(var(--primary), 0.15)" }}>
+                    <f.icon className="w-6 h-6" style={{ color: "hsl(var(--primary))" }} />
                   </div>
                   <h3 className="font-semibold">{f.title}</h3>
-                  <p className="text-[hsl(var(--muted-foreground))] text-sm">{f.desc}</p>
+                  <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -308,19 +295,19 @@ export default function AudioCutter() {
             <div className="card space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold truncate">{file.name}</h3>
-                <span className="text-sm text-[hsl(var(--muted-foreground))]">{formatTime(duration)}</span>
+                <span className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{formatTime(duration)}</span>
               </div>
-              <div className="w-full bg-[hsl(var(--secondary))] rounded-full h-2 cursor-pointer" onClick={(e) => {
+              <div className="w-full rounded-full h-2 cursor-pointer" onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect()
                 const percent = (e.clientX - rect.left) / rect.width
                 if (audioRef.current) audioRef.current.currentTime = Math.max(0, Math.min(duration, percent * duration))
-              }}>
+              }} style={{ backgroundColor: "hsl(var(--secondary))" }}>
                 <div 
                   className="bg-gradient-to-r from-blue-500 to-purple-600 h-full rounded-full transition-all duration-100" 
-                  style={{width: `${(currentTime / duration) * 100 || 0}%`}} 
+                  style={{ width: `${(currentTime / duration) * 100 || 0}%` }} 
                 />
               </div>
-              <div className="flex justify-between text-xs sm:text-sm text-[hsl(var(--muted-foreground))]">
+              <div className="flex justify-between text-xs sm:text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
@@ -335,7 +322,7 @@ export default function AudioCutter() {
                 </button>
                 
                 <div className="flex items-center gap-2 flex-1">
-                  <Volume2 className="w-4 h-4 text-[hsl(var(--muted-foreground))] flex-shrink-0" />
+                  <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
                   <input
                     type="range"
                     min="0"
@@ -349,7 +336,7 @@ export default function AudioCutter() {
                     }}
                     className="w-full"
                   />
-                  <span className="text-xs sm:text-sm text-[hsl(var(--muted-foreground))] min-w-[2.5rem]">{(volume * 100).toFixed(0)}%</span>
+                  <span className="text-xs sm:text-sm min-w-[2.5rem]" style={{ color: "hsl(var(--muted-foreground))" }}>{(volume * 100).toFixed(0)}%</span>
                 </div>
 
                 <select
@@ -406,15 +393,15 @@ export default function AudioCutter() {
             <div className="card space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold block">Selection: {formatTime(startTime)} - {formatTime(endTime)}</label>
-                <div className="w-full h-2 bg-[hsl(var(--secondary))] rounded-full cursor-pointer" onClick={(e) => {
+                <div className="w-full h-2 rounded-full cursor-pointer" onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect()
                   const percent = (e.clientX - rect.left) / rect.width
                   const newStart = percent * duration
                   if (newStart < endTime) setStartTime(newStart)
-                }}>
+                }} style={{ backgroundColor: "hsl(var(--secondary))" }}>
                   <div 
                     className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
-                    style={{width: `${((endTime - startTime) / duration) * 100}%`, marginLeft: `${(startTime / duration) * 100}%`}}
+                    style={{ width: `${((endTime - startTime) / duration) * 100}%`, marginLeft: `${(startTime / duration) * 100}%` }}
                   />
                 </div>
               </div>
@@ -470,7 +457,7 @@ export default function AudioCutter() {
 
       {/* Floating Bottom Navigation - iOS 27 Style */}
       <div className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 w-full sm:w-auto">
-        <nav className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 bg-[hsl(var(--card))]/90 backdrop-blur-xl border border-[hsl(var(--border))] rounded-full shadow-2xl">
+        <nav className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 backdrop-blur-xl rounded-full shadow-2xl" style={{ backgroundColor: "hsla(var(--card), 0.9)", borderColor: "hsl(var(--border))", borderWidth: "1px" }}>
           {[
             { id: "home", label: "Home", icon: Home },
             { id: "editor", label: "Editor", icon: Sliders, disabled: !file },
@@ -480,13 +467,17 @@ export default function AudioCutter() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               disabled={tab.disabled}
-              className={`flex flex-col items-center gap-0.5 sm:gap-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full transition-all duration-300 ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-[hsl(var(--primary))]"
-                  : tab.disabled
-                  ? "text-[hsl(var(--muted-foreground))] cursor-not-allowed opacity-50"
-                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
-              }`}
+              className="flex flex-col items-center gap-0.5 sm:gap-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full transition-all duration-300"
+              style={activeTab === tab.id ? { 
+                backgroundImage: "linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(168, 85, 247, 0.2))",
+                color: "hsl(var(--primary))"
+              } : tab.disabled ? {
+                color: "hsl(var(--muted-foreground))",
+                opacity: 0.5,
+                cursor: "not-allowed"
+              } : {
+                color: "hsl(var(--muted-foreground))"
+              }}
             >
               <tab.icon className="w-5 h-5" />
               <span className="text-xs font-medium hidden sm:block">{tab.label}</span>
