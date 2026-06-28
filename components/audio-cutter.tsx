@@ -8,7 +8,7 @@ import {
   Zap, Wand2, Loader, Check, AlertCircle, Music
 } from "lucide-react"
 import { formatTime } from "@/lib/time-utils"
-import { useTheme } from "@/components/ui/theme-context"
+import { useTheme, ThemeToggle } from "@/components/ui/theme-context"
 import { useToast } from "@/components/ui/toast-provider"
 
 interface AudioBookmark {
@@ -18,7 +18,6 @@ interface AudioBookmark {
 }
 
 export default function AudioCutter() {
-  const { theme, toggleTheme } = useTheme()
   const { addToast } = useToast()
   const audioRef = useRef<HTMLAudioElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -258,10 +257,8 @@ export default function AudioCutter() {
             <h1 className="text-2xl font-bold text-white">Modus Audio</h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button onClick={toggleTheme} className="btn-icon">
-              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
             <button className="btn-icon">
               <HelpCircle className="w-5 h-5" />
             </button>
