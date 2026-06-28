@@ -1,26 +1,49 @@
-/* v4.0 - Modern 2026 Pro Audio Editor */
+/* v5.0 - Modern Modus Audio with Dual Theme */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /* Light Theme */
   :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 92%;
+    --secondary-foreground: 0 0% 20%;
+    --accent: 280 85% 56%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 0 0% 80%;
+    --muted-foreground: 0 0% 40%;
+    --border: 0 0% 88%;
+    --input: 0 0% 94%;
+    --ring: 217 91% 60%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --destructive: 0 84% 60%;
+  }
+
+  /* Dark Theme */
+  html.dark {
     --background: 0 0% 5.5%;
     --foreground: 0 0% 98%;
     --card: 0 0% 11%;
     --card-foreground: 0 0% 98%;
-    --primary: 200 98% 39%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 98%;
-    --accent: 280 98% 50%;
+    --accent: 280 85% 56%;
     --accent-foreground: 0 0% 100%;
     --muted: 0 0% 30%;
     --muted-foreground: 0 0% 60%;
     --border: 0 0% 18%;
     --input: 0 0% 12%;
-    --ring: 200 98% 39%;
-    --success: 142 76% 36%;
+    --ring: 217 91% 60%;
+    --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --destructive: 0 84% 60%;
   }
@@ -28,50 +51,99 @@
 
 @layer base {
   html {
-    @apply bg-background;
+    scroll-behavior: smooth;
+    color-scheme: light dark;
   }
-  
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
-  
+
   * {
-    @apply border-border;
+    @apply border-[hsl(var(--border))];
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 h-11 px-5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md;
+    @apply inline-flex items-center justify-center gap-2 h-11 px-5 font-semibold rounded-lg transition-all duration-200;
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 4px 12px hsla(var(--primary), 0.2);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 8px 20px hsla(var(--primary), 0.3);
+    transform: translateY(-2px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 h-11 px-5 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-medium rounded-lg transition-all duration-200;
+    @apply inline-flex items-center justify-center gap-2 h-11 px-5 font-medium rounded-lg transition-all duration-200 border;
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border-color: hsl(var(--border));
+  }
+
+  .btn-secondary:hover {
+    background-color: hsl(var(--secondary) / 0.8);
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center w-11 h-11 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors duration-200;
+    @apply inline-flex items-center justify-center w-11 h-11 rounded-lg transition-colors duration-200;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .btn-icon:hover {
+    background-color: hsl(var(--secondary));
   }
 
   .card {
-    @apply bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg;
+    @apply rounded-2xl p-6 shadow-md transition-all duration-300;
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
   }
 
   .input-field {
-    @apply w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-slate-100 placeholder-slate-500 transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20;
+    @apply w-full rounded-lg px-4 py-3 font-medium transition-all duration-200 focus:outline-none;
+    background-color: hsl(var(--input));
+    color: hsl(var(--foreground));
+    border: 1.5px solid hsl(var(--border));
+  }
+
+  .input-field:hover {
+    border-color: hsl(var(--muted));
+  }
+
+  .input-field:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsla(var(--primary), 0.1);
+  }
+
+  .input-field::placeholder {
+    color: hsl(var(--muted-foreground));
   }
 
   .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold;
   }
 
   .badge-primary {
-    @apply bg-blue-500/15 text-blue-300 border border-blue-500/30;
+    background: hsla(var(--primary), 0.15);
+    color: hsl(var(--primary));
+    border: 1px solid hsla(var(--primary), 0.3);
   }
 
   .badge-accent {
-    @apply bg-purple-500/15 text-purple-300 border border-purple-500/30;
+    background: hsla(var(--accent), 0.15);
+    color: hsl(var(--accent));
+    border: 1px solid hsla(var(--accent), 0.3);
   }
 }
 

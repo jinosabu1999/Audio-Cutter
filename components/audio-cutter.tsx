@@ -3,24 +3,16 @@
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
-  Upload, Play, Pause, Download, Home, Sliders, Settings, Sun, Moon,
-  HelpCircle, Volume2, VolumeX, BookmarkPlus, Trash2, BarChart3, Copy,
-  Zap, Wand2, Loader, Check, AlertCircle, Music
+  Upload, Play, Pause, Download, Home, Sliders,
+  HelpCircle, Volume2, Loader, Music, Scissors
 } from "lucide-react"
 import { formatTime } from "@/lib/time-utils"
-import { useTheme, ThemeToggle } from "@/components/ui/theme-context"
+import { ThemeToggle } from "@/components/ui/theme-context"
 import { useToast } from "@/components/ui/toast-provider"
-
-interface AudioBookmark {
-  id: string
-  time: number
-  label: string
-}
 
 export default function AudioCutter() {
   const { addToast } = useToast()
   const audioRef = useRef<HTMLAudioElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const [file, setFile] = useState<File | null>(null)
   const [audioUrl, setAudioUrl] = useState<string>("")
@@ -30,15 +22,9 @@ export default function AudioCutter() {
   const [startTime, setStartTime] = useState<number>(0)
   const [endTime, setEndTime] = useState<number>(0)
   const [volume, setVolume] = useState<number>(1)
-  const [isMuted, setIsMuted] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<"home" | "editor" | "export">("home")
-  const [bookmarks, setBookmarks] = useState<AudioBookmark[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
-  const [waveformData, setWaveformData] = useState<number[]>([])
-  const [selectedFormat, setSelectedFormat] = useState("wav")
-  const [fadeIn, setFadeIn] = useState(0)
-  const [fadeOut, setFadeOut] = useState(0)
-  const [normalize, setNormalize] = useState(false)
+  const [playbackSpeed, setPlaybackSpeed] = useState(1)
 
   // Auto-set end time when audio loads
   useEffect(() => {
@@ -235,7 +221,7 @@ export default function AudioCutter() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] transition-colors duration-300">
       {audioUrl && (
         <audio
           ref={audioRef}
@@ -248,18 +234,20 @@ export default function AudioCutter() {
       )}
 
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
               <Music className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Modus Audio</h1>
+            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+              Modus Audio
+            </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle />
-            <button className="btn-icon">
+            <button className="btn-icon" title="Help">
               <HelpCircle className="w-5 h-5" />
             </button>
           </div>
@@ -267,45 +255,47 @@ export default function AudioCutter() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-32">
         {activeTab === "home" && (
-          <div className="animate-fadeIn space-y-12">
+          <div className="animate-fadeIn space-y-8 sm:space-y-12">
             {/* Hero */}
-            <div className="text-center space-y-6">
-              <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <div className="text-center space-y-4 sm:space-y-6">
+              <h2 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 Professional Audio Editing
               </h2>
-              <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-                Cut, edit, and enhance your audio with precision. Powerful tools, intuitive interface.
+              <p className="text-[hsl(var(--muted-foreground))] text-base sm:text-lg max-w-2xl mx-auto">
+                Cut, trim, and enhance your audio with precision. Fast, simple, and powerful.
               </p>
             </div>
 
             {/* Upload Area */}
-            <div className="card">
-              <label className="flex flex-col items-center justify-center gap-4 p-12 cursor-pointer hover:bg-slate-800/50 rounded-lg transition-colors">
-                <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <Upload className="w-8 h-8 text-blue-400" />
+            <div className="card space-y-4">
+              <label className="flex flex-col items-center justify-center gap-4 p-8 sm:p-12 cursor-pointer hover:bg-[hsl(var(--secondary))]/50 rounded-lg transition-all duration-200 border-2 border-dashed border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]">
+                <div className="w-16 h-16 rounded-full bg-[hsl(var(--primary))]/15 flex items-center justify-center">
+                  <Upload className="w-8 h-8 text-[hsl(var(--primary))]" />
                 </div>
                 <div className="text-center">
-                  <p className="text-white font-semibold mb-1">Upload audio file</p>
-                  <p className="text-slate-400 text-sm">Drag and drop or click to select</p>
+                  <p className="font-semibold mb-1">Upload audio file</p>
+                  <p className="text-[hsl(var(--muted-foreground))] text-sm">Drag and drop or click to select</p>
                 </div>
                 <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
               </label>
-              {file && <p className="text-center text-blue-400 mt-4">{file.name}</p>}
+              {file && <p className="text-center text-[hsl(var(--primary))] font-medium">{file.name}</p>}
             </div>
 
             {/* Features Grid */}
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
               {[
-                { icon: Zap, title: "Fast Processing", desc: "Real-time audio editing" },
-                { icon: Wand2, title: "Smart Tools", desc: "AI-powered suggestions" },
-                { icon: BarChart3, title: "Visualization", desc: "Live frequency analysis" }
+                { icon: Upload, title: "Easy Upload", desc: "Drag & drop support" },
+                { icon: Scissors, title: "Precise Cutting", desc: "Frame-accurate trimming" },
+                { icon: Volume2, title: "Volume Control", desc: "Adjust levels easily" }
               ].map((f, i) => (
-                <div key={i} className="card flex flex-col items-center text-center">
-                  <f.icon className="w-8 h-8 text-blue-400 mb-3" />
-                  <h3 className="font-semibold mb-2">{f.title}</h3>
-                  <p className="text-slate-400 text-sm">{f.desc}</p>
+                <div key={i} className="card flex flex-col items-center text-center space-y-3 hover:shadow-lg transition-all duration-300">
+                  <div className="w-12 h-12 rounded-lg bg-[hsl(var(--primary))]/15 flex items-center justify-center">
+                    <f.icon className="w-6 h-6 text-[hsl(var(--primary))]" />
+                  </div>
+                  <h3 className="font-semibold">{f.title}</h3>
+                  <p className="text-[hsl(var(--muted-foreground))] text-sm">{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -313,163 +303,155 @@ export default function AudioCutter() {
         )}
 
         {activeTab === "editor" && file && (
-          <div className="animate-fadeIn space-y-8">
-            {/* Waveform Canvas */}
-            <div className="card">
-              <canvas
-                ref={canvasRef}
-                className="w-full h-32 bg-slate-800/50 rounded-lg"
-              />
+          <div className="animate-fadeIn space-y-6">
+            {/* Progress Bar */}
+            <div className="card space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold truncate">{file.name}</h3>
+                <span className="text-sm text-[hsl(var(--muted-foreground))]">{formatTime(duration)}</span>
+              </div>
+              <div className="w-full bg-[hsl(var(--secondary))] rounded-full h-2 cursor-pointer" onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                const percent = (e.clientX - rect.left) / rect.width
+                if (audioRef.current) audioRef.current.currentTime = Math.max(0, Math.min(duration, percent * duration))
+              }}>
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-full rounded-full transition-all duration-100" 
+                  style={{width: `${(currentTime / duration) * 100 || 0}%`}} 
+                />
+              </div>
+              <div className="flex justify-between text-xs sm:text-sm text-[hsl(var(--muted-foreground))]">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
             </div>
 
-            {/* Time Display */}
-            <div className="card flex items-center justify-center gap-8 text-center">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Current</p>
-                <p className="text-2xl font-mono font-bold">{formatTime(currentTime)}</p>
-              </div>
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Duration</p>
-                <p className="text-2xl font-mono font-bold">{formatTime(duration)}</p>
-              </div>
-            </div>
+            {/* Controls */}
+            <div className="card space-y-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <button onClick={handlePlayPause} className="btn-primary flex-1 sm:flex-none">
+                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                  {isPlaying ? "Pause" : "Play"}
+                </button>
+                
+                <div className="flex items-center gap-2 flex-1">
+                  <Volume2 className="w-4 h-4 text-[hsl(var(--muted-foreground))] flex-shrink-0" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value)
+                      setVolume(val)
+                      if (audioRef.current) audioRef.current.volume = val
+                    }}
+                    className="w-full"
+                  />
+                  <span className="text-xs sm:text-sm text-[hsl(var(--muted-foreground))] min-w-[2.5rem]">{(volume * 100).toFixed(0)}%</span>
+                </div>
 
-            {/* Playback Controls */}
-            <div className="card flex justify-center gap-4">
-              <button onClick={handlePlayPause} className="btn-primary">
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                {isPlaying ? "Pause" : "Play"}
-              </button>
-              <button onClick={addBookmark} className="btn-secondary">
-                <BookmarkPlus className="w-5 h-5" />
-                Bookmark
-              </button>
+                <select
+                  value={playbackSpeed}
+                  onChange={(e) => {
+                    const speed = parseFloat(e.target.value)
+                    setPlaybackSpeed(speed)
+                    if (audioRef.current) audioRef.current.playbackRate = speed
+                  }}
+                  className="input-field py-2 text-sm"
+                >
+                  <option value="0.5">0.5x</option>
+                  <option value="0.75">0.75x</option>
+                  <option value="1">1x</option>
+                  <option value="1.25">1.25x</option>
+                  <option value="1.5">1.5x</option>
+                  <option value="2">2x</option>
+                </select>
+              </div>
             </div>
 
             {/* Time Selection */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="card">
-                <label className="block text-sm font-medium mb-2">Start Time</label>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="card space-y-2">
+                <label className="text-sm font-semibold block">Start Time</label>
                 <input
                   type="number"
                   min="0"
                   max={endTime}
                   step="0.1"
-                  value={startTime}
+                  value={startTime.toFixed(2)}
                   onChange={(e) => setStartTime(Math.max(0, parseFloat(e.target.value) || 0))}
                   className="input-field"
                 />
               </div>
-              <div className="card">
-                <label className="block text-sm font-medium mb-2">End Time</label>
+              <div className="card space-y-2">
+                <label className="text-sm font-semibold block">End Time</label>
                 <input
                   type="number"
                   min={startTime}
                   max={duration}
                   step="0.1"
-                  value={endTime}
+                  value={endTime.toFixed(2)}
+                  onChange={(e) => setEndTime(Math.min(duration, parseFloat(e.target.value) || duration))}
+                  className="input-field"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "export" && file && (
+          <div className="animate-fadeIn space-y-6">
+            <div className="card space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold block">Selection: {formatTime(startTime)} - {formatTime(endTime)}</label>
+                <div className="w-full h-2 bg-[hsl(var(--secondary))] rounded-full cursor-pointer" onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const percent = (e.clientX - rect.left) / rect.width
+                  const newStart = percent * duration
+                  if (newStart < endTime) setStartTime(newStart)
+                }}>
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
+                    style={{width: `${((endTime - startTime) / duration) * 100}%`, marginLeft: `${(startTime / duration) * 100}%`}}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="card space-y-2">
+                <label className="text-sm font-semibold block">Start Time</label>
+                <input
+                  type="number"
+                  min="0"
+                  max={endTime}
+                  step="0.1"
+                  value={startTime.toFixed(2)}
+                  onChange={(e) => setStartTime(Math.max(0, parseFloat(e.target.value) || 0))}
+                  className="input-field"
+                />
+              </div>
+              <div className="card space-y-2">
+                <label className="text-sm font-semibold block">End Time</label>
+                <input
+                  type="number"
+                  min={startTime}
+                  max={duration}
+                  step="0.1"
+                  value={endTime.toFixed(2)}
                   onChange={(e) => setEndTime(Math.min(duration, parseFloat(e.target.value) || duration))}
                   className="input-field"
                 />
               </div>
             </div>
 
-            {/* Bookmarks */}
-            {bookmarks.length > 0 && (
-              <div className="card">
-                <h3 className="font-semibold mb-4">Bookmarks</h3>
-                <div className="space-y-2">
-                  {bookmarks.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-                      <span>{b.label}</span>
-                      <button
-                        onClick={() => setBookmarks(bookmarks.filter((x) => x.id !== b.id))}
-                        className="btn-icon"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "export" && file && (
-          <div className="animate-fadeIn space-y-8">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="card">
-                <h3 className="text-lg font-semibold mb-4">Audio Format</h3>
-                <select
-                  value={selectedFormat}
-                  onChange={(e) => setSelectedFormat(e.target.value)}
-                  className="input-field"
-                >
-                  <option value="wav">WAV (Lossless)</option>
-                  <option value="mp3">MP3 (Compressed)</option>
-                  <option value="ogg">OGG (Open Format)</option>
-                  <option value="m4a">M4A (Apple)</option>
-                </select>
-              </div>
-
-              <div className="card">
-                <h3 className="text-lg font-semibold mb-4">Audio Enhancement</h3>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={normalize}
-                    onChange={(e) => setNormalize(e.target.checked)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm">Normalize audio levels</span>
-                </label>
-              </div>
-
-              <div className="card">
-                <h3 className="text-lg font-semibold mb-4">Fade In (seconds)</h3>
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={fadeIn}
-                  onChange={(e) => setFadeIn(parseFloat(e.target.value))}
-                  className="w-full"
-                />
-                <p className="text-sm text-slate-400 mt-2">{fadeIn.toFixed(1)}s</p>
-              </div>
-
-              <div className="card">
-                <h3 className="text-lg font-semibold mb-4">Fade Out (seconds)</h3>
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={fadeOut}
-                  onChange={(e) => setFadeOut(parseFloat(e.target.value))}
-                  className="w-full"
-                />
-                <p className="text-sm text-slate-400 mt-2">{fadeOut.toFixed(1)}s</p>
-              </div>
-            </div>
-
-            <div className="card">
-              <h3 className="text-lg font-semibold mb-4">Volume</h3>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="w-full"
-              />
-              <p className="text-sm text-slate-400 mt-2">{(volume * 100).toFixed(0)}%</p>
-            </div>
-
-            <button onClick={handleCutAudio} disabled={isProcessing} className="btn-primary w-full py-3 text-lg">
+            <button 
+              onClick={handleCutAudio} 
+              disabled={isProcessing} 
+              className="btn-primary w-full py-3 sm:py-4 text-base sm:text-lg font-semibold"
+            >
               {isProcessing ? (
                 <>
                   <Loader className="w-5 h-5 animate-spin" />
@@ -478,7 +460,7 @@ export default function AudioCutter() {
               ) : (
                 <>
                   <Download className="w-5 h-5" />
-                  Cut & Export as {selectedFormat.toUpperCase()}
+                  Export Audio
                 </>
               )}
             </button>
@@ -486,28 +468,28 @@ export default function AudioCutter() {
         )}
       </main>
 
-      {/* Floating Bottom Navigation - iOS Style */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-        <nav className="flex items-center gap-2 px-2 py-3 bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-full shadow-2xl">
+      {/* Floating Bottom Navigation - iOS 27 Style */}
+      <div className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 w-full sm:w-auto">
+        <nav className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 bg-[hsl(var(--card))]/90 backdrop-blur-xl border border-[hsl(var(--border))] rounded-full shadow-2xl">
           {[
             { id: "home", label: "Home", icon: Home },
             { id: "editor", label: "Editor", icon: Sliders, disabled: !file },
             { id: "export", label: "Export", icon: Download, disabled: !file }
-          ].map((tab, idx) => (
+          ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               disabled={tab.disabled}
-              className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-full transition-all duration-300 ${
+              className={`flex flex-col items-center gap-0.5 sm:gap-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full transition-all duration-300 ${
                 activeTab === tab.id
-                  ? "bg-blue-500/20 text-blue-400"
+                  ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-[hsl(var(--primary))]"
                   : tab.disabled
-                  ? "text-slate-600 cursor-not-allowed opacity-50"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  ? "text-[hsl(var(--muted-foreground))] cursor-not-allowed opacity-50"
+                  : "text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]"
               }`}
             >
               <tab.icon className="w-5 h-5" />
-              <span className="text-xs font-medium">{tab.label}</span>
+              <span className="text-xs font-medium hidden sm:block">{tab.label}</span>
             </button>
           ))}
         </nav>
