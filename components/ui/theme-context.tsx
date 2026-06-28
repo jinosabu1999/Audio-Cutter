@@ -15,25 +15,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark")
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
-    
     // Check for saved theme preference or default to dark
     const savedTheme = localStorage.getItem("modusAudioTheme") as Theme | null
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
 
-    if (savedTheme) {
-      setTheme(savedTheme)
-      applyTheme(savedTheme)
-    } else if (prefersDark) {
-      setTheme("dark")
-      applyTheme("dark")
-    } else {
-      setTheme("dark")
-      applyTheme("dark")
-    }
+    const initialTheme = savedTheme || (prefersDark ? "dark" : "dark")
+    setTheme(initialTheme)
+    applyTheme(initialTheme)
   }, [])
 
   const applyTheme = (newTheme: Theme) => {
@@ -53,8 +43,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(newTheme)
     applyTheme(newTheme)
   }
-
-  if (!mounted) return <>{children}</>
 
   return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>
 }
