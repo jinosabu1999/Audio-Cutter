@@ -233,14 +233,16 @@ export default function AudioCutter() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        onLoadedMetadata={handleAudioMetadata}
-        onTimeUpdate={handleTimeUpdate}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-      />
+      {audioUrl && (
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onLoadedMetadata={handleAudioMetadata}
+          onTimeUpdate={handleTimeUpdate}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+        />
+      )}
 
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
