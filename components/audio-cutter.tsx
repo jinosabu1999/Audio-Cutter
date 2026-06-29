@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Upload, Play, Pause, Download, Home, Sliders,
-  HelpCircle, Volume2, Loader, Music, Scissors
+  HelpCircle, Volume2, Loader, Music, Scissors, Zap
 } from "lucide-react"
 import { formatTime } from "@/lib/time-utils"
 import { ThemeToggle } from "@/components/ui/theme-context"
@@ -270,21 +270,37 @@ export default function AudioCutter() {
               {file && <p className="text-center font-medium" style={{ color: "hsl(var(--primary))" }}>{file.name}</p>}
             </div>
 
-            {/* Features Grid */}
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-              {[
-                { icon: Upload, title: "Easy Upload", desc: "Drag & drop support" },
-                { icon: Scissors, title: "Precise Cutting", desc: "Frame-accurate trimming" },
-                { icon: Volume2, title: "Volume Control", desc: "Adjust levels easily" }
-              ].map((f, i) => (
-                <div key={i} className="card flex flex-col items-center text-center space-y-3 hover:shadow-lg transition-all duration-300">
-                  <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: "hsla(var(--primary), 0.15)" }}>
-                    <f.icon className="w-6 h-6" style={{ color: "hsl(var(--primary))" }} />
+            {/* Features Horizontal Scrolling Pills */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Key Features</h3>
+              <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
+                {[
+                  { icon: Upload, title: "Easy Upload", desc: "Drag & drop support" },
+                  { icon: Scissors, title: "Precise Cutting", desc: "Frame-accurate trimming" },
+                  { icon: Volume2, title: "Volume Control", desc: "Adjust levels easily" },
+                  { icon: Zap, title: "Fast Processing", desc: "Real-time editing" },
+                  { icon: Download, title: "Quick Export", desc: "Multiple formats" }
+                ].map((f, i) => (
+                  <div 
+                    key={i} 
+                    className="flex-shrink-0 px-4 py-3 rounded-full border transition-all duration-300 hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: "hsla(var(--secondary), 0.5)",
+                      borderColor: "hsl(var(--border))",
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "hsla(var(--primary), 0.2)" }}>
+                        <f.icon className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                      </div>
+                      <div className="min-w-[140px]">
+                        <p className="text-sm font-semibold">{f.title}</p>
+                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{f.desc}</p>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="font-semibold">{f.title}</h3>
-                  <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{f.desc}</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
