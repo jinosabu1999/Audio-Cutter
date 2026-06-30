@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { 
   Upload, Play, Pause, Volume2, Settings, Sliders,
-  Waveform, Music, Download, Plus, Trash2, Share2,
+  Waves, Music, Download, Plus, Trash2, Share2,
   Zap, Filter, Mic, Radio, RotateCcw, Check, Menu
 } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-context"
@@ -157,7 +157,7 @@ export default function SoundStudio() {
             {/* Features Grid */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { icon: Waveform, title: "Waveform View", desc: "Visual editing" },
+                { icon: Waves, title: "Waveform View", desc: "Visual editing" },
                 { icon: Sliders, title: "Advanced EQ", desc: "12+ bands" },
                 { icon: Zap, title: "Real-time Effects", desc: "Pro audio effects" },
                 { icon: Download, title: "Multi-format", desc: "Export anywhere" }
@@ -343,7 +343,7 @@ export default function SoundStudio() {
 
                 <div className="card">
                   <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Waveform className="w-5 h-5" style={{color: "hsl(var(--primary))"}} />
+                    <Waves className="w-5 h-5" style={{color: "hsl(var(--primary))"}} />
                     Fade Effects
                   </h3>
                   <div className="grid sm:grid-cols-2 gap-6">
