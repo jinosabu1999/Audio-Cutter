@@ -1,51 +1,51 @@
-/* v5.0 - Modern Modus Audio with Dual Theme */
+/* Material 3 Expressive Audio Editor */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* Light Theme */
+  /* Light Theme - Material 3 Expressive */
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 10%;
+    --background: 58 21% 96%;
+    --foreground: 41 29% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-    --primary: 217 91% 60%;
+    --card-foreground: 41 29% 13%;
+    --primary: 280 85% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 92%;
-    --secondary-foreground: 0 0% 20%;
-    --accent: 280 85% 56%;
-    --accent-foreground: 0 0% 100%;
-    --muted: 0 0% 80%;
-    --muted-foreground: 0 0% 40%;
-    --border: 0 0% 88%;
-    --input: 0 0% 94%;
-    --ring: 217 91% 60%;
-    --success: 142 71% 45%;
+    --secondary: 258 90% 60%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 29 98% 52%;
+    --accent-foreground: 0 0% 0%;
+    --muted: 60 10% 82%;
+    --muted-foreground: 60 5% 48%;
+    --border: 60 14% 90%;
+    --input: 60 9% 95%;
+    --ring: 280 85% 52%;
+    --success: 142 76% 36%;
     --warning: 38 92% 50%;
-    --destructive: 0 84% 60%;
+    --destructive: 12 100% 55%;
   }
 
-  /* Dark Theme */
+  /* Dark Theme - Material 3 Expressive */
   html.dark {
-    --background: 0 0% 5.5%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 11%;
-    --card-foreground: 0 0% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --accent: 280 85% 56%;
-    --accent-foreground: 0 0% 100%;
-    --muted: 0 0% 30%;
-    --muted-foreground: 0 0% 60%;
-    --border: 0 0% 18%;
-    --input: 0 0% 12%;
-    --ring: 217 91% 60%;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --destructive: 0 84% 60%;
+    --background: 280 20% 11%;
+    --foreground: 280 10% 96%;
+    --card: 280 15% 18%;
+    --card-foreground: 280 10% 96%;
+    --primary: 280 85% 63%;
+    --primary-foreground: 280 30% 15%;
+    --secondary: 258 90% 70%;
+    --secondary-foreground: 258 30% 15%;
+    --accent: 29 98% 58%;
+    --accent-foreground: 29 30% 20%;
+    --muted: 280 5% 35%;
+    --muted-foreground: 280 5% 70%;
+    --border: 280 10% 25%;
+    --input: 280 10% 15%;
+    --ring: 280 85% 63%;
+    --success: 142 76% 45%;
+    --warning: 38 92% 55%;
+    --destructive: 12 100% 60%;
   }
 }
 
@@ -68,54 +68,63 @@
 }
 
 @layer components {
+  /* Material 3 Buttons */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 h-11 px-5 font-semibold rounded-lg transition-all duration-200;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    @apply inline-flex items-center justify-center gap-2 h-12 px-6 font-semibold rounded-full transition-all duration-300;
+    background-color: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
-    box-shadow: 0 4px 12px hsla(var(--primary), 0.2);
+    box-shadow: 0 4px 12px hsla(var(--primary), 0.3);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 8px 20px hsla(var(--primary), 0.3);
+    box-shadow: 0 8px 24px hsla(var(--primary), 0.4);
     transform: translateY(-2px);
   }
 
   .btn-primary:active {
     transform: translateY(0);
+    box-shadow: 0 2px 8px hsla(var(--primary), 0.2);
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 h-11 px-5 font-medium rounded-lg transition-all duration-200 border;
-    background-color: hsl(var(--secondary));
-    color: hsl(var(--secondary-foreground));
-    border-color: hsl(var(--border));
+    @apply inline-flex items-center justify-center gap-2 h-12 px-6 font-semibold rounded-full transition-all duration-300 border-2;
+    background-color: transparent;
+    color: hsl(var(--primary));
+    border-color: hsl(var(--primary));
   }
 
   .btn-secondary:hover {
-    background-color: hsl(var(--secondary) / 0.8);
+    background-color: hsla(var(--primary), 0.08);
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center w-11 h-11 rounded-lg transition-colors duration-200;
-    color: hsl(var(--muted-foreground));
+    @apply inline-flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300;
+    color: hsl(var(--foreground));
   }
 
   .btn-icon:hover {
-    background-color: hsl(var(--secondary));
+    background-color: hsla(var(--primary), 0.12);
   }
 
+  /* Material 3 Cards */
   .card {
-    @apply rounded-2xl p-6 shadow-md transition-all duration-300;
+    @apply rounded-3xl p-6 transition-all duration-300;
     background-color: hsl(var(--card));
     color: hsl(var(--card-foreground));
     border: 1px solid hsl(var(--border));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
 
+  .card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Material 3 Input */
   .input-field {
-    @apply w-full rounded-lg px-4 py-3 font-medium transition-all duration-200 focus:outline-none;
+    @apply w-full rounded-xl px-4 py-3 font-medium transition-all duration-200 focus:outline-none;
     background-color: hsl(var(--input));
     color: hsl(var(--foreground));
-    border: 1.5px solid hsl(var(--border));
+    border: 2px solid hsl(var(--border));
   }
 
   .input-field:hover {
@@ -124,27 +133,28 @@
 
   .input-field:focus {
     border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 3px hsla(var(--primary), 0.1);
+    box-shadow: 0 0 0 4px hsla(var(--primary), 0.15);
   }
 
   .input-field::placeholder {
     color: hsl(var(--muted-foreground));
   }
 
+  /* Material 3 Badge */
   .badge {
-    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold;
   }
 
   .badge-primary {
-    background: hsla(var(--primary), 0.15);
+    background: hsla(var(--primary), 0.2);
     color: hsl(var(--primary));
-    border: 1px solid hsla(var(--primary), 0.3);
+    border: 1.5px solid hsl(var(--primary));
   }
 
   .badge-accent {
-    background: hsla(var(--accent), 0.15);
+    background: hsla(var(--accent), 0.2);
     color: hsl(var(--accent));
-    border: 1px solid hsla(var(--accent), 0.3);
+    border: 1.5px solid hsl(var(--accent));
   }
 }
 
