@@ -1,7 +1,5 @@
-import AudioEditor from "@/components/audio-editor"
+import SoundStudio from "@/components/sound-studio"
 
 export default function Home() {
-  return (
-    <AudioEditor />
-  )
+  return <SoundStudio />
 }
