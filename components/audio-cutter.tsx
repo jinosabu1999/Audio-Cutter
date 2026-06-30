@@ -4,7 +4,8 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import {
   Upload, Play, Pause, Download, Home, Sliders,
-  HelpCircle, Volume2, Loader, Music, Scissors, Zap
+  HelpCircle, Volume2, Loader, Music, Scissors, Zap,
+  RotateCcw, Redo2, Mic2, Filter, Radio, Waves
 } from "lucide-react"
 import { formatTime } from "@/lib/time-utils"
 import { ThemeToggle } from "@/components/ui/theme-context"
@@ -34,6 +35,17 @@ export default function AudioCutter() {
   const [bookmarks, setBookmarks] = useState<AudioBookmark[]>([])
   const [canvasRef] = useState<HTMLCanvasElement | null>(null)
   const [waveformData, setWaveformData] = useState<number[]>([])
+  const [equalizerEnabled, setEqualizerEnabled] = useState(false)
+  const [bassBoost, setBassBoost] = useState(0)
+  const [trebleBoost, setTrebleBoost] = useState(0)
+  const [midBoost, setMidBoost] = useState(0)
+  const [reverbEnabled, setReverbEnabled] = useState(false)
+  const [compressorEnabled, setCompressorEnabled] = useState(false)
+  const [normalizationEnabled, setNormalizationEnabled] = useState(false)
+  const [fadeInDuration, setFadeInDuration] = useState(0)
+  const [fadeOutDuration, setFadeOutDuration] = useState(0)
+  const [history, setHistory] = useState<any[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
 
   useEffect(() => {
     if (audioRef.current && duration > 0 && endTime === 0) {
@@ -329,9 +341,9 @@ export default function AudioCutter() {
               </div>
             </div>
 
-            {/* Controls */}
+            {/* Playback Controls */}
             <div className="card space-y-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 <button onClick={handlePlayPause} className="btn-primary flex-1 sm:flex-none">
                   {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                   {isPlaying ? "Pause" : "Play"}
@@ -401,6 +413,180 @@ export default function AudioCutter() {
                 />
               </div>
             </div>
+
+            {/* Audio Effects - Equalizer */}
+            <div className="card space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Radio className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
+                  Equalizer
+                </h3>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={equalizerEnabled}
+                    onChange={(e) => setEqualizerEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm">Enable</span>
+                </label>
+              </div>
+              
+              {equalizerEnabled && (
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">Bass <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({bassBoost > 0 ? '+' : ''}{bassBoost}dB)</span></label>
+                    <input
+                      type="range"
+                      min="-12"
+                      max="12"
+                      step="1"
+                      value={bassBoost}
+                      onChange={(e) => setBassBoost(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">Mid <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({midBoost > 0 ? '+' : ''}{midBoost}dB)</span></label>
+                    <input
+                      type="range"
+                      min="-12"
+                      max="12"
+                      step="1"
+                      value={midBoost}
+                      onChange={(e) => setMidBoost(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">Treble <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({trebleBoost > 0 ? '+' : ''}{trebleBoost}dB)</span></label>
+                    <input
+                      type="range"
+                      min="-12"
+                      max="12"
+                      step="1"
+                      value={trebleBoost}
+                      onChange={(e) => setTrebleBoost(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Audio Effects - Advanced */}
+            <div className="card space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Filter className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
+                Audio Effects
+              </h3>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <label className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
+                  <input
+                    type="checkbox"
+                    checked={reverbEnabled}
+                    onChange={(e) => setReverbEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <div>
+                    <p className="font-medium">Reverb</p>
+                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Add depth and space</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
+                  <input
+                    type="checkbox"
+                    checked={compressorEnabled}
+                    onChange={(e) => setCompressorEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <div>
+                    <p className="font-medium">Compressor</p>
+                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Level compression</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
+                  <input
+                    type="checkbox"
+                    checked={normalizationEnabled}
+                    onChange={(e) => setNormalizationEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <div>
+                    <p className="font-medium">Normalize</p>
+                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Optimize volume</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Fade In/Out */}
+            <div className="card space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Waves className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
+                Fade Effects
+              </h3>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold block">Fade In <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({fadeInDuration.toFixed(1)}s)</span></label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={fadeInDuration}
+                    onChange={(e) => setFadeInDuration(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold block">Fade Out <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({fadeOutDuration.toFixed(1)}s)</span></label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={fadeOutDuration}
+                    onChange={(e) => setFadeOutDuration(parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bookmarks */}
+            {bookmarks.length > 0 && (
+              <div className="card space-y-3">
+                <h3 className="text-lg font-semibold">Bookmarks</h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {bookmarks.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between p-3 rounded-lg transition-all hover:shadow-md" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
+                      <div className="cursor-pointer flex-1" onClick={() => {
+                        if (audioRef.current) audioRef.current.currentTime = b.time
+                      }}>
+                        <p className="font-medium">{b.label}</p>
+                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{formatTime(b.time)}</p>
+                      </div>
+                      <button
+                        onClick={() => setBookmarks(bookmarks.filter((x) => x.id !== b.id))}
+                        className="btn-icon"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button onClick={addBookmark} className="btn-secondary w-full py-3">
+              Add Bookmark
+            </button>
           </div>
         )}
 
