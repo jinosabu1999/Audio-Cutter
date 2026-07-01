@@ -736,8 +736,6 @@ export default function AudioCutter() {
                 </div>
               </div>
             </div>
-              </div>
-            </div>
 
             {/* Selection Controls */}
             <div className="card p-6">
