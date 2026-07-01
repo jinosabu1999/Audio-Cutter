@@ -1,692 +1,1081 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-  Upload, Play, Pause, Download, Home, Sliders,
-  HelpCircle, Volume2, Loader, Music, Scissors, Zap,
-  RotateCcw, Redo2, Mic2, Filter, Radio, Waves
+  Upload,
+  Play,
+  Pause,
+  Scissors,
+  RotateCcw,
+  VolumeX,
+  Volume2,
+  X,
+  Download,
+  BookmarkPlus,
+  Waves,
+  Sliders,
+  SkipBack,
+  SkipForward,
+  Repeat,
+  Sun,
+  Moon,
+  HomeIcon,
+  Music2,
+  Sparkles,
+  BarChart3,
+  HelpCircle,
+  FolderOpen,
+  Undo2,
+  Redo2,
+  Zap,
 } from "lucide-react"
 import { formatTime } from "@/lib/time-utils"
-import { ThemeToggle } from "@/components/ui/theme-context"
+import { cn } from "@/lib/utils"
+import { useTheme } from "@/components/ui/theme-context"
 import { useToast } from "@/components/ui/toast-provider"
 
 interface AudioBookmark {
   id: string
   time: number
   label: string
+  color: string
 }
 
+interface HistoryState {
+  startTime: number
+  endTime: number
+}
+
+interface EffectSettings {
+  eq: { low: number; mid: number; high: number }
+  compressor: number
+  reverb: number
+  delay: number
+  highpass: number
+  lowpass: number
+}
+
+const defaultEffects: EffectSettings = {
+  eq: { low: 0, mid: 0, high: 0 },
+  compressor: 0,
+  reverb: 0,
+  delay: 0,
+  highpass: 20,
+  lowpass: 20000,
+}
+
+const bookmarkColors = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"]
+
 export default function AudioCutter() {
+  const { theme, toggleTheme } = useTheme()
   const { addToast } = useToast()
-  const audioRef = useRef<HTMLAudioElement>(null)
 
   const [file, setFile] = useState<File | null>(null)
   const [audioUrl, setAudioUrl] = useState<string>("")
+  const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null)
   const [duration, setDuration] = useState<number>(0)
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [currentTime, setCurrentTime] = useState<number>(0)
   const [startTime, setStartTime] = useState<number>(0)
   const [endTime, setEndTime] = useState<number>(0)
   const [volume, setVolume] = useState<number>(1)
-  const [activeTab, setActiveTab] = useState<"home" | "editor" | "export">("home")
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [playbackSpeed, setPlaybackSpeed] = useState(1)
-  const [bookmarks, setBookmarks] = useState<AudioBookmark[]>([])
-  const [canvasRef] = useState<HTMLCanvasElement | null>(null)
+  const [isMuted, setIsMuted] = useState<boolean>(false)
+  const [isLooping, setIsLooping] = useState<boolean>(false)
+
+  const [activeTab, setActiveTab] = useState<string>("home")
   const [waveformData, setWaveformData] = useState<number[]>([])
-  const [equalizerEnabled, setEqualizerEnabled] = useState(false)
-  const [bassBoost, setBassBoost] = useState(0)
-  const [trebleBoost, setTrebleBoost] = useState(0)
-  const [midBoost, setMidBoost] = useState(0)
-  const [reverbEnabled, setReverbEnabled] = useState(false)
-  const [compressorEnabled, setCompressorEnabled] = useState(false)
-  const [normalizationEnabled, setNormalizationEnabled] = useState(false)
-  const [fadeInDuration, setFadeInDuration] = useState(0)
-  const [fadeOutDuration, setFadeOutDuration] = useState(0)
-  const [history, setHistory] = useState<any[]>([])
-  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [bookmarks, setBookmarks] = useState<AudioBookmark[]>([])
+  const [effects, setEffects] = useState<EffectSettings>(defaultEffects)
+  const [exportFormat, setExportFormat] = useState<string>("wav")
+  const [normalize, setNormalize] = useState<boolean>(false)
+
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1)
+  const [history, setHistory] = useState<HistoryState[]>([])
+  const [historyIndex, setHistoryIndex] = useState<number>(-1)
+  const [showSpectrum, setShowSpectrum] = useState<boolean>(false)
+  const [frequencyData, setFrequencyData] = useState<Uint8Array>(new Uint8Array(64))
+  const [showHelp, setShowHelp] = useState<boolean>(false)
+  const [projectName, setProjectName] = useState<string>("")
+
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+
+  const handleFileUpload = async (uploadedFile: File) => {
+    try {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl)
+      }
+
+      const url = URL.createObjectURL(uploadedFile)
+      setAudioUrl(url)
+      setFile(uploadedFile)
+      setProjectName(uploadedFile.name.replace(/\.[^/.]+$/, ""))
+
+      // Create audio context
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext()
+      }
+
+      // Decode audio
+      const arrayBuffer = await uploadedFile.arrayBuffer()
+      const buffer = await audioContextRef.current.decodeAudioData(arrayBuffer)
+      setAudioBuffer(buffer)
+      setDuration(buffer.duration)
+      setStartTime(0)
+      setEndTime(buffer.duration)
+
+      // Generate waveform
+      generateWaveformData(buffer)
+
+      addToast("Audio loaded successfully!", "success")
+      setActiveTab("editor")
+    } catch (error) {
+      console.error("File upload failed:", error)
+      addToast("Failed to load audio file", "error")
+    }
+  }
+
+  const generateWaveformData = (buffer: AudioBuffer) => {
+    const rawData = buffer.getChannelData(0)
+    const samples = 100
+    const blockSize = Math.floor(rawData.length / samples)
+    const filteredData: number[] = []
+
+    for (let i = 0; i < samples; i++) {
+      let sum = 0
+      for (let j = 0; j < blockSize; j++) {
+        sum += Math.abs(rawData[i * blockSize + j])
+      }
+      filteredData.push(sum / blockSize)
+    }
+
+    const maxVal = Math.max(...filteredData, 0.01)
+    setWaveformData(filteredData.map((v) => v / maxVal))
+  }
 
   useEffect(() => {
-    if (audioRef.current && duration > 0 && endTime === 0) {
-      setEndTime(duration)
+    if (!audioRef.current || !audioUrl) return
+
+    const audio = audioRef.current
+    audio.src = audioUrl
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext()
     }
-  }, [duration])
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0]
-    if (!uploadedFile) return
+    if (!sourceNodeRef.current) {
+      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audio)
+      analyserRef.current = audioContextRef.current.createAnalyser()
+      analyserRef.current.fftSize = 256
+      sourceNodeRef.current.connect(analyserRef.current)
+      analyserRef.current.connect(audioContextRef.current.destination)
+    }
 
-    if (!uploadedFile.type.startsWith("audio/")) {
-      addToast("Please select a valid audio file", "error")
+    audio.volume = isMuted ? 0 : volume
+    audio.playbackRate = playbackSpeed
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [audioUrl])
+
+  useEffect(() => {
+    if (!showSpectrum || !analyserRef.current || !isPlaying) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
       return
     }
 
-    setFile(uploadedFile)
-    const url = URL.createObjectURL(uploadedFile)
-    setAudioUrl(url)
-    setActiveTab("editor")
-    addToast("Audio file loaded successfully", "success")
-  }
-
-  const handleAudioMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration)
-      setEndTime(audioRef.current.duration)
+    const updateSpectrum = () => {
+      const dataArray = new Uint8Array(analyserRef.current!.frequencyBinCount)
+      analyserRef.current!.getByteFrequencyData(dataArray)
+      setFrequencyData(new Uint8Array(dataArray.slice(0, 64)))
+      animationFrameRef.current = requestAnimationFrame(updateSpectrum)
     }
-  }
 
-  const handlePlayPause = () => {
+    updateSpectrum()
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [showSpectrum, isPlaying])
+
+  useEffect(() => {
     if (!audioRef.current) return
+
+    const audio = audioRef.current
+    const updateTime = () => {
+      setCurrentTime(audio.currentTime)
+    }
+
+    audio.addEventListener("timeupdate", updateTime)
+    return () => audio.removeEventListener("timeupdate", updateTime)
+  }, [audioUrl])
+
+  const togglePlayPause = () => {
+    if (!audioRef.current) return
+
     if (isPlaying) {
       audioRef.current.pause()
     } else {
-      if (currentTime >= endTime) {
-        audioRef.current.currentTime = startTime
+      if (audioContextRef.current?.state === "suspended") {
+        audioContextRef.current.resume()
       }
       audioRef.current.play()
     }
     setIsPlaying(!isPlaying)
   }
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime)
-      if (audioRef.current.currentTime >= endTime) {
-        audioRef.current.pause()
-        setIsPlaying(false)
-      }
+  const seekTo = (time: number) => {
+    if (!audioRef.current) return
+    audioRef.current.currentTime = time
+    setCurrentTime(time)
+  }
+
+  const skipForward = () => seekTo(Math.min(currentTime + 5, duration))
+  const skipBackward = () => seekTo(Math.max(currentTime - 5, 0))
+
+  const saveToHistory = useCallback(() => {
+    const newState: HistoryState = { startTime, endTime }
+    const newHistory = history.slice(0, historyIndex + 1)
+    newHistory.push(newState)
+    if (newHistory.length > 20) newHistory.shift()
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+  }, [startTime, endTime, history, historyIndex])
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const prevState = history[historyIndex - 1]
+      setStartTime(prevState.startTime)
+      setEndTime(prevState.endTime)
+      setHistoryIndex(historyIndex - 1)
     }
   }
 
-  const handleCutAudio = async () => {
-    if (!audioUrl) return
-    setIsProcessing(true)
-    try {
-      const response = await fetch(audioUrl)
-      const arrayBuffer = await response.arrayBuffer()
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
-
-      const sampleRate = audioBuffer.sampleRate
-      const startSample = Math.floor(startTime * sampleRate)
-      const endSample = Math.floor(endTime * sampleRate)
-      const duration = endSample - startSample
-
-      const offlineContext = new OfflineAudioContext(
-        audioBuffer.numberOfChannels,
-        duration,
-        sampleRate
-      )
-
-      const source = offlineContext.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(offlineContext.destination)
-      source.start(0, startTime, endTime - startTime)
-
-      const renderedBuffer = await offlineContext.startRendering()
-      const wav = audioBufferToWav(renderedBuffer)
-      const blob = new Blob([wav], { type: "audio/wav" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `cut-audio-${Date.now()}.wav`
-      a.click()
-
-      addToast("Audio cut and downloaded successfully", "success")
-    } catch (error) {
-      addToast("Error processing audio", "error")
-    } finally {
-      setIsProcessing(false)
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1]
+      setStartTime(nextState.startTime)
+      setEndTime(nextState.endTime)
+      setHistoryIndex(historyIndex + 1)
     }
   }
 
-  const audioBufferToWav = (audioBuffer: AudioBuffer) => {
-    const numberOfChannels = audioBuffer.numberOfChannels
-    const sampleRate = audioBuffer.sampleRate
-    const format = 1
-    const bitDepth = 16
-
-    const bytesPerSample = bitDepth / 8
-    const blockAlign = numberOfChannels * bytesPerSample
-
-    let pos = 0
-
-    const setUint16 = (data: DataView, byteOffset: number, value: number) => {
-      data.setUint16(byteOffset, value, true)
-    }
-
-    const setUint32 = (data: DataView, byteOffset: number, value: number) => {
-      data.setUint32(byteOffset, value, true)
-    }
-
-    const interleave = (channelData: Float32Array[], length: number) => {
-      let result = new Float32Array(length * numberOfChannels)
-      let index = 0
-      for (let i = 0; i < length; i++) {
-        for (let channel = 0; channel < numberOfChannels; channel++) {
-          result[index++] = channelData[channel][i]
-        }
-      }
-      return result
-    }
-
-    const floatTo16BitPCM = (output: DataView, offset: number, input: Float32Array) => {
-      for (let i = 0; i < input.length; i++, offset += 2) {
-        let s = Math.max(-1, Math.min(1, input[i]))
-        output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
-      }
-    }
-
-    const channels: Float32Array[] = []
-    for (let i = 0; i < numberOfChannels; i++) {
-      channels.push(audioBuffer.getChannelData(i))
-    }
-
-    const length = audioBuffer.length * numberOfChannels * 2 + 44
-    const arrayBuffer = new ArrayBuffer(length)
-    const view = new DataView(arrayBuffer)
-
-    setUint32(view, pos, 0x46464952); pos += 4
-    setUint32(view, pos, length - 8); pos += 4
-    setUint32(view, pos, 0x45564157); pos += 4
-    setUint32(view, pos, 0x20746d66); pos += 4
-    setUint32(view, pos, 16); pos += 4
-    setUint16(view, pos, format); pos += 2
-    setUint16(view, pos, numberOfChannels); pos += 2
-    setUint32(view, pos, sampleRate); pos += 4
-    setUint32(view, pos, sampleRate * blockAlign); pos += 4
-    setUint16(view, pos, blockAlign); pos += 2
-    setUint16(view, pos, bitDepth); pos += 2
-
-    setUint32(view, pos, 0x61746164); pos += 4
-    setUint32(view, pos, length - pos - 4); pos += 4
-
-    const interleaved = interleave(channels, audioBuffer.length)
-    floatTo16BitPCM(view, pos, interleaved)
-
-    return arrayBuffer
+  const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const clickTime = (x / rect.width) * duration
+    seekTo(clickTime)
   }
 
   const addBookmark = () => {
-    if (!file) return
-    const bookmark: AudioBookmark = {
-      id: Math.random().toString(),
+    const newBookmark: AudioBookmark = {
+      id: Date.now().toString(),
       time: currentTime,
-      label: `Bookmark at ${formatTime(currentTime)}`
+      label: formatTime(currentTime),
+      color: bookmarkColors[bookmarks.length % bookmarkColors.length],
     }
-    setBookmarks([...bookmarks, bookmark])
+    setBookmarks([...bookmarks, newBookmark])
     addToast("Bookmark added", "success")
   }
 
+  const removeBookmark = (id: string) => {
+    setBookmarks(bookmarks.filter((b) => b.id !== id))
+  }
+
+  const exportAudio = async () => {
+    if (!audioBuffer) return
+
+    try {
+      const sampleRate = audioBuffer.sampleRate
+      const startSample = Math.floor(startTime * sampleRate)
+      const endSample = Math.floor(endTime * sampleRate)
+      const length = endSample - startSample
+
+      const offlineContext = new OfflineAudioContext(audioBuffer.numberOfChannels, length, sampleRate)
+      const newBuffer = offlineContext.createBuffer(audioBuffer.numberOfChannels, length, sampleRate)
+
+      for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+        const oldData = audioBuffer.getChannelData(channel)
+        const newData = newBuffer.getChannelData(channel)
+        for (let i = 0; i < length; i++) {
+          newData[i] = oldData[startSample + i]
+        }
+      }
+
+      const source = offlineContext.createBufferSource()
+      source.buffer = newBuffer
+      source.connect(offlineContext.destination)
+      source.start()
+
+      const renderedBuffer = await offlineContext.startRendering()
+      const wavBlob = audioBufferToWav(renderedBuffer)
+      const url = URL.createObjectURL(wavBlob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${projectName || "audio"}.${exportFormat}`
+      a.click()
+      URL.revokeObjectURL(url)
+
+      addToast("Export complete!", "success")
+    } catch (error) {
+      console.error("Export failed:", error)
+      addToast("Export failed", "error")
+    }
+  }
+
+  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+    const numChannels = buffer.numberOfChannels
+    const sampleRate = buffer.sampleRate
+    const format = 1
+    const bitDepth = 16
+    const bytesPerSample = bitDepth / 8
+    const blockAlign = numChannels * bytesPerSample
+    const dataLength = buffer.length * blockAlign
+    const bufferLength = 44 + dataLength
+    const arrayBuffer = new ArrayBuffer(bufferLength)
+    const view = new DataView(arrayBuffer)
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i))
+      }
+    }
+
+    writeString(0, "RIFF")
+    view.setUint32(4, 36 + dataLength, true)
+    writeString(8, "WAVE")
+    writeString(12, "fmt ")
+    view.setUint32(16, 16, true)
+    view.setUint16(20, format, true)
+    view.setUint16(22, numChannels, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate * blockAlign, true)
+    view.setUint16(32, blockAlign, true)
+    view.setUint16(34, bitDepth, true)
+    writeString(36, "data")
+    view.setUint32(40, dataLength, true)
+
+    let offset = 44
+    for (let i = 0; i < buffer.length; i++) {
+      for (let channel = 0; channel < numChannels; channel++) {
+        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]))
+        view.setInt16(offset, sample * 0x7fff, true)
+        offset += 2
+      }
+    }
+
+    return new Blob([arrayBuffer], { type: "audio/wav" })
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return
+
+      switch (e.key) {
+        case " ":
+          e.preventDefault()
+          togglePlayPause()
+          break
+        case "ArrowLeft":
+          e.preventDefault()
+          skipBackward()
+          break
+        case "ArrowRight":
+          e.preventDefault()
+          skipForward()
+          break
+        case "m":
+          setIsMuted(!isMuted)
+          break
+        case "b":
+          if (file) addBookmark()
+          break
+        case "?":
+          setShowHelp(!showHelp)
+          break
+        case "z":
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault()
+            if (e.shiftKey) redo()
+            else undo()
+          }
+          break
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isPlaying, isMuted, currentTime, file, showHelp, historyIndex, history.length])
+
   return (
-    <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: "hsl(var(--background))", color: "hsl(var(--foreground))" }}>
-      {audioUrl && (
-        <audio
-          ref={audioRef}
-          src={audioUrl}
-          onLoadedMetadata={handleAudioMetadata}
-          onTimeUpdate={handleTimeUpdate}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-        />
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
+      <audio ref={audioRef} />
+
+      {showHelp && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="bg-card rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Keyboard Shortcuts</h2>
+              <Button onClick={() => setShowHelp(false)} className="btn-icon">
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-6">
+              {[
+                {
+                  title: "Playback",
+                  shortcuts: [
+                    { key: "Space", action: "Play/Pause" },
+                    { key: "← →", action: "Skip 5s" },
+                    { key: "M", action: "Mute" },
+                  ],
+                },
+                {
+                  title: "Editing",
+                  shortcuts: [
+                    { key: "B", action: "Add bookmark" },
+                    { key: "Cmd+Z", action: "Undo" },
+                    { key: "Cmd+Shift+Z", action: "Redo" },
+                  ],
+                },
+              ].map((section, i) => (
+                <div key={i}>
+                  <h3 className="font-semibold mb-3 text-primary">{section.title}</h3>
+                  <div className="space-y-2">
+                    {section.shortcuts.map((s, j) => (
+                      <div key={j} className="flex justify-between items-center">
+                        <kbd className="px-3 py-1.5 bg-secondary rounded-lg text-sm font-mono">{s.key}</kbd>
+                        <span className="text-sm text-muted-foreground">{s.action}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-md" style={{ borderBottom: "1px solid hsl(var(--border))", backgroundColor: "hsla(var(--card), 0.8)" }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-xl">
+        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-              <Music className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <Waves className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-              Modus Audio
-            </h1>
+            <div>
+              <h1 className="text-lg font-bold">Modus Audio</h1>
+              {file && <p className="text-xs text-muted-foreground hidden sm:block">{file.name}</p>}
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeToggle />
-            <button className="btn-icon" title="Help">
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setShowHelp(true)} className="btn-icon">
               <HelpCircle className="w-5 h-5" />
-            </button>
+            </Button>
+            <Button onClick={toggleTheme} className="btn-icon">
+              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-32">
+      <main className="flex-1 container mx-auto px-4 sm:px-6 py-6 pb-24 overflow-y-auto">
+        {/* Home Tab */}
         {activeTab === "home" && (
-          <div className="animate-fadeIn space-y-8 sm:space-y-12">
-            {/* Hero */}
-            <div className="text-center space-y-4 sm:space-y-6">
-              <h2 className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                Professional Audio Editing
-              </h2>
-              <p className="text-base sm:text-lg max-w-2xl mx-auto" style={{ color: "hsl(var(--muted-foreground))" }}>
-                Cut, trim, and enhance your audio with precision. Fast, simple, and powerful.
-              </p>
-            </div>
-
-            {/* Upload Area */}
-            <div className="card space-y-4">
-              <label className="flex flex-col items-center justify-center gap-4 p-8 sm:p-12 cursor-pointer rounded-lg transition-all duration-200 border-2 border-dashed" style={{ borderColor: "hsl(var(--border))" }}>
-                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "hsla(var(--primary), 0.15)" }}>
-                  <Upload className="w-8 h-8" style={{ color: "hsl(var(--primary))" }} />
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold mb-1">Upload audio file</p>
-                  <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>Drag and drop or click to select</p>
-                </div>
-                <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
-              </label>
-              {file && <p className="text-center font-medium" style={{ color: "hsl(var(--primary))" }}>{file.name}</p>}
-            </div>
-
-            {/* Features Horizontal Scrolling Pills */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Key Features</h3>
-              <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
-                {[
-                  { icon: Upload, title: "Easy Upload", desc: "Drag & drop support" },
-                  { icon: Scissors, title: "Precise Cutting", desc: "Frame-accurate trimming" },
-                  { icon: Volume2, title: "Volume Control", desc: "Adjust levels easily" },
-                  { icon: Zap, title: "Fast Processing", desc: "Real-time editing" },
-                  { icon: Download, title: "Quick Export", desc: "Multiple formats" }
-                ].map((f, i) => (
-                  <div 
-                    key={i} 
-                    className="flex-shrink-0 px-4 py-3 rounded-full border transition-all duration-300 hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
-                    style={{
-                      backgroundColor: "hsla(var(--secondary), 0.5)",
-                      borderColor: "hsl(var(--border))",
-                    }}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "hsla(var(--primary), 0.2)" }}>
-                        <f.icon className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
-                      </div>
-                      <div className="min-w-[140px]">
-                        <p className="text-sm font-semibold">{f.title}</p>
-                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{f.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* Upload Section */}
+            <div className="card p-8 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-4">
+                <Music2 className="w-8 h-8 text-white" />
               </div>
+              <h2 className="text-2xl font-bold mb-2">Professional Audio Editing</h2>
+              <p className="text-muted-foreground mb-6">Cut, edit, and enhance your audio with precision</p>
+
+              <label className="btn-primary cursor-pointer inline-flex">
+                <Upload className="w-5 h-5" />
+                <span>Upload Audio File</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {/* Quick Tips */}
+            <div className="card p-6 bg-primary/5 border-primary/20">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Quick Tips
+              </h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>• Use Space bar to play/pause quickly</li>
+                <li>• Press B to add bookmarks at important moments</li>
+                <li>• Click the waveform to seek to any position</li>
+                <li>• Press ? to view all keyboard shortcuts</li>
+              </ul>
             </div>
           </div>
         )}
 
+        {/* Editor Tab */}
         {activeTab === "editor" && file && (
-          <div className="animate-fadeIn space-y-6">
-            {/* Progress Bar */}
-            <div className="card space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold truncate">{file.name}</h3>
-                <span className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{formatTime(duration)}</span>
+          <div className="max-w-full mx-auto space-y-6 px-2 sm:px-0">
+            {/* Project Name */}
+            <div className="card p-4">
+              <Label className="text-sm mb-2 block">Project Name</Label>
+              <Input
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="My Audio Project"
+                className="max-w-xs sm:max-w-md"
+              />
+            </div>
+
+            {/* Spectrum Analyzer */}
+            {showSpectrum && (
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                    Live Spectrum
+                  </h3>
+                  <Button onClick={() => setShowSpectrum(false)} className="btn-icon">
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="h-32 bg-secondary/30 rounded-xl flex items-end justify-center gap-1 p-4">
+                  {Array.from(frequencyData).map((value, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 bg-gradient-to-t from-primary to-accent rounded-t-full transition-all duration-75"
+                      style={{ height: `${Math.max(4, (value / 255) * 100)}%` }}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="w-full rounded-full h-2 cursor-pointer" onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect()
-                const percent = (e.clientX - rect.left) / rect.width
-                if (audioRef.current) audioRef.current.currentTime = Math.max(0, Math.min(duration, percent * duration))
-              }} style={{ backgroundColor: "hsl(var(--secondary))" }}>
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-full rounded-full transition-all duration-100" 
-                  style={{ width: `${(currentTime / duration) * 100 || 0}%` }} 
+            )}
+
+            {/* Waveform */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <Waves className="w-5 h-5 text-primary" />
+                  <span className="font-semibold">Waveform</span>
+                  <span className="badge badge-primary">{formatTime(duration)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!showSpectrum && (
+                    <Button onClick={() => setShowSpectrum(true)} size="sm" variant="outline">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Show Spectrum
+                    </Button>
+                  )}
+                  <Button onClick={addBookmark} size="sm" variant="outline">
+                    <BookmarkPlus className="w-4 h-4 mr-2" />
+                    Bookmark
+                  </Button>
+                </div>
+              </div>
+
+              {/* Waveform Display */}
+              <div
+                className="relative h-32 sm:h-40 bg-secondary/30 rounded-xl cursor-pointer overflow-hidden"
+                onClick={handleWaveformClick}
+              >
+                {/* Selection Highlight */}
+                <div
+                  className="absolute top-0 bottom-0 bg-primary/20 border-x-2 border-primary"
+                  style={{
+                    left: `${(startTime / duration) * 100}%`,
+                    width: `${((endTime - startTime) / duration) * 100}%`,
+                  }}
                 />
+
+                {/* Waveform Bars */}
+                <div className="absolute inset-0 flex items-center gap-1 px-4">
+                  {waveformData.map((value, i) => {
+                    const time = (i / waveformData.length) * duration
+                    const isInSelection = time >= startTime && time <= endTime
+                    const isPassed = time <= currentTime
+
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex-1 rounded-full transition-all duration-75",
+                          isInSelection
+                            ? isPassed
+                              ? "bg-primary"
+                              : "bg-primary/50"
+                            : isPassed
+                              ? "bg-muted-foreground/50"
+                              : "bg-muted-foreground/20",
+                        )}
+                        style={{ height: `${Math.max(10, value * 90)}%` }}
+                      />
+                    )
+                  })}
+                </div>
+
+                {/* Playhead */}
+                <div
+                  className="absolute top-0 bottom-0 w-1 bg-accent z-10"
+                  style={{ left: `${(currentTime / duration) * 100}%` }}
+                >
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-accent rounded-full" />
+                </div>
+
+                {/* Bookmarks */}
+                {bookmarks.map((bookmark) => (
+                  <div
+                    key={bookmark.id}
+                    className="absolute top-0 bottom-0 w-1 cursor-pointer z-20 group"
+                    style={{ left: `${(bookmark.time / duration) * 100}%`, backgroundColor: bookmark.color }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      seekTo(bookmark.time)
+                    }}
+                  >
+                    <div
+                      className="absolute -top-2 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full group-hover:scale-150 transition-transform"
+                      style={{ backgroundColor: bookmark.color }}
+                    />
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between text-xs sm:text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-                <span>{formatTime(currentTime)}</span>
+
+              {/* Time Labels */}
+              <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                <span>{formatTime(0)}</span>
+                <span className="text-primary font-semibold">{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
             </div>
 
             {/* Playback Controls */}
-            <div className="card space-y-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                <button onClick={handlePlayPause} className="btn-primary flex-1 sm:flex-none">
-                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                  {isPlaying ? "Pause" : "Play"}
-                </button>
-                
-                <div className="flex items-center gap-2 flex-1">
-                  <Volume2 className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={volume}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value)
-                      setVolume(val)
-                      if (audioRef.current) audioRef.current.volume = val
-                    }}
-                    className="w-full"
-                  />
-                  <span className="text-xs sm:text-sm min-w-[2.5rem]" style={{ color: "hsl(var(--muted-foreground))" }}>{(volume * 100).toFixed(0)}%</span>
-                </div>
-
-                <select
-                  value={playbackSpeed}
-                  onChange={(e) => {
-                    const speed = parseFloat(e.target.value)
-                    setPlaybackSpeed(speed)
-                    if (audioRef.current) audioRef.current.playbackRate = speed
-                  }}
-                  className="input-field py-2 text-sm"
-                >
-                  <option value="0.5">0.5x</option>
-                  <option value="0.75">0.75x</option>
-                  <option value="1">1x</option>
-                  <option value="1.25">1.25x</option>
-                  <option value="1.5">1.5x</option>
-                  <option value="2">2x</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Time Selection */}
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="card space-y-2">
-                <label className="text-sm font-semibold block">Start Time</label>
-                <input
-                  type="number"
-                  min="0"
-                  max={endTime}
-                  step="0.1"
-                  value={startTime.toFixed(2)}
-                  onChange={(e) => setStartTime(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="input-field"
-                />
-              </div>
-              <div className="card space-y-2">
-                <label className="text-sm font-semibold block">End Time</label>
-                <input
-                  type="number"
-                  min={startTime}
-                  max={duration}
-                  step="0.1"
-                  value={endTime.toFixed(2)}
-                  onChange={(e) => setEndTime(Math.min(duration, parseFloat(e.target.value) || duration))}
-                  className="input-field"
-                />
-              </div>
-            </div>
-
-            {/* Audio Effects - Equalizer */}
-            <div className="card space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Radio className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
-                  Equalizer
-                </h3>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={equalizerEnabled}
-                    onChange={(e) => setEqualizerEnabled(e.target.checked)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm">Enable</span>
-                </label>
-              </div>
-              
-              {equalizerEnabled && (
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium block">Bass <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({bassBoost > 0 ? '+' : ''}{bassBoost}dB)</span></label>
-                    <input
-                      type="range"
-                      min="-12"
-                      max="12"
-                      step="1"
-                      value={bassBoost}
-                      onChange={(e) => setBassBoost(parseInt(e.target.value))}
-                      className="w-full"
-                    />
+            <div className="card p-4 sm:p-6">
+              <div className="space-y-4">
+                {/* Main Controls Row */}
+                <div className="flex flex-wrap items-center justify-start sm:justify-between gap-2 sm:gap-4">
+                  {/* Transport Controls */}
+                  <div className="flex items-center gap-2">
+                    <Button onClick={skipBackward} className="btn-icon">
+                      <SkipBack className="w-5 h-5" />
+                    </Button>
+                    <Button onClick={togglePlayPause} className="btn-primary">
+                      {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                    </Button>
+                    <Button onClick={skipForward} className="btn-icon">
+                      <SkipForward className="w-5 h-5" />
+                    </Button>
+                    <Button
+                      onClick={() => setIsLooping(!isLooping)}
+                      className={cn("btn-icon", isLooping && "bg-primary/20")}
+                    >
+                      <Repeat className="w-5 h-5" />
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium block">Mid <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({midBoost > 0 ? '+' : ''}{midBoost}dB)</span></label>
-                    <input
-                      type="range"
-                      min="-12"
-                      max="12"
-                      step="1"
-                      value={midBoost}
-                      onChange={(e) => setMidBoost(parseInt(e.target.value))}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium block">Treble <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({trebleBoost > 0 ? '+' : ''}{trebleBoost}dB)</span></label>
-                    <input
-                      type="range"
-                      min="-12"
-                      max="12"
-                      step="1"
-                      value={trebleBoost}
-                      onChange={(e) => setTrebleBoost(parseInt(e.target.value))}
-                      className="w-full"
+
+                  {/* Volume Control */}
+                  <div className="flex items-center gap-2">
+                    <Button onClick={() => setIsMuted(!isMuted)} className="btn-icon">
+                      {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    </Button>
+                    <Slider
+                      value={[isMuted ? 0 : volume]}
+                      onValueChange={(v) => {
+                        setVolume(v[0])
+                        setIsMuted(false)
+                        if (audioRef.current) audioRef.current.volume = v[0]
+                      }}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      className="w-20"
                     />
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Audio Effects - Advanced */}
-            <div className="card space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Filter className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
-                Audio Effects
-              </h3>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <label className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
-                  <input
-                    type="checkbox"
-                    checked={reverbEnabled}
-                    onChange={(e) => setReverbEnabled(e.target.checked)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <div>
-                    <p className="font-medium">Reverb</p>
-                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Add depth and space</p>
-                  </div>
-                </label>
-
-                <label className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
-                  <input
-                    type="checkbox"
-                    checked={compressorEnabled}
-                    onChange={(e) => setCompressorEnabled(e.target.checked)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <div>
-                    <p className="font-medium">Compressor</p>
-                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Level compression</p>
-                  </div>
-                </label>
-
-                <label className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
-                  <input
-                    type="checkbox"
-                    checked={normalizationEnabled}
-                    onChange={(e) => setNormalizationEnabled(e.target.checked)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <div>
-                    <p className="font-medium">Normalize</p>
-                    <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>Optimize volume</p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Fade In/Out */}
-            <div className="card space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Waves className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
-                Fade Effects
-              </h3>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold block">Fade In <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({fadeInDuration.toFixed(1)}s)</span></label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={fadeInDuration}
-                    onChange={(e) => setFadeInDuration(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold block">Fade Out <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>({fadeOutDuration.toFixed(1)}s)</span></label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={fadeOutDuration}
-                    onChange={(e) => setFadeOutDuration(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Bookmarks */}
-            {bookmarks.length > 0 && (
-              <div className="card space-y-3">
-                <h3 className="text-lg font-semibold">Bookmarks</h3>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {bookmarks.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between p-3 rounded-lg transition-all hover:shadow-md" style={{ backgroundColor: "hsla(var(--secondary), 0.5)" }}>
-                      <div className="cursor-pointer flex-1" onClick={() => {
-                        if (audioRef.current) audioRef.current.currentTime = b.time
-                      }}>
-                        <p className="font-medium">{b.label}</p>
-                        <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{formatTime(b.time)}</p>
-                      </div>
-                      <button
-                        onClick={() => setBookmarks(bookmarks.filter((x) => x.id !== b.id))}
-                        className="btn-icon"
+                {/* Speed Control Row */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium">Speed:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                      <Button
+                        key={speed}
+                        onClick={() => {
+                          setPlaybackSpeed(speed)
+                          if (audioRef.current) audioRef.current.playbackRate = speed
+                        }}
+                        size="sm"
+                        variant={playbackSpeed === speed ? "default" : "outline"}
+                        className="min-w-[48px] text-xs"
                       >
-                        ✕
-                      </button>
+                        {speed}x
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Selection Controls */}
+            <div className="card p-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-primary" />
+                Selection
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm mb-2 block">Start Time</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={startTime.toFixed(2)}
+                      onChange={(e) => {
+                        const val = Number.parseFloat(e.target.value)
+                        if (val >= 0 && val < endTime) {
+                          saveToHistory()
+                          setStartTime(val)
+                        }
+                      }}
+                      step="0.1"
+                      className="flex-1"
+                    />
+                    <Button onClick={() => setStartTime(currentTime)} variant="outline">
+                      Set
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm mb-2 block">End Time</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={endTime.toFixed(2)}
+                      onChange={(e) => {
+                        const val = Number.parseFloat(e.target.value)
+                        if (val > startTime && val <= duration) {
+                          saveToHistory()
+                          setEndTime(val)
+                        }
+                      }}
+                      step="0.1"
+                      className="flex-1"
+                    />
+                    <Button onClick={() => setEndTime(currentTime)} variant="outline">
+                      Set
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Select */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => {
+                    saveToHistory()
+                    setStartTime(0)
+                    setEndTime(Math.min(10, duration))
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  First 10s
+                </Button>
+                <Button
+                  onClick={() => {
+                    saveToHistory()
+                    setStartTime(Math.max(0, duration - 10))
+                    setEndTime(duration)
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Last 10s
+                </Button>
+                <Button
+                  onClick={() => {
+                    saveToHistory()
+                    setStartTime(0)
+                    setEndTime(duration)
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Select All
+                </Button>
+              </div>
+            </div>
+
+            {/* Bookmarks List */}
+            {bookmarks.length > 0 && (
+              <div className="card p-6">
+                <h3 className="font-semibold mb-4">Bookmarks</h3>
+                <div className="space-y-2">
+                  {bookmarks.map((bookmark) => (
+                    <div key={bookmark.id} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bookmark.color }} />
+                        <span className="font-mono text-sm">{bookmark.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button onClick={() => seekTo(bookmark.time)} size="sm" variant="ghost">
+                          Jump
+                        </Button>
+                        <Button onClick={() => removeBookmark(bookmark.id)} size="sm" variant="ghost">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <button onClick={addBookmark} className="btn-secondary w-full py-3">
-              Add Bookmark
-            </button>
+            {/* History Controls */}
+            <div className="flex items-center gap-2">
+              <Button onClick={undo} disabled={historyIndex <= 0} size="sm" variant="outline">
+                <Undo2 className="w-4 h-4 mr-2" />
+                Undo
+              </Button>
+              <Button onClick={redo} disabled={historyIndex >= history.length - 1} size="sm" variant="outline">
+                <Redo2 className="w-4 h-4 mr-2" />
+                Redo
+              </Button>
+            </div>
           </div>
         )}
 
-        {activeTab === "export" && file && (
-          <div className="animate-fadeIn space-y-6">
-            <div className="card space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold block">Selection: {formatTime(startTime)} - {formatTime(endTime)}</label>
-                <div className="w-full h-2 rounded-full cursor-pointer" onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  const percent = (e.clientX - rect.left) / rect.width
-                  const newStart = percent * duration
-                  if (newStart < endTime) setStartTime(newStart)
-                }} style={{ backgroundColor: "hsl(var(--secondary))" }}>
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
-                    style={{ width: `${((endTime - startTime) / duration) * 100}%`, marginLeft: `${(startTime / duration) * 100}%` }}
-                  />
+        {/* Effects Tab */}
+        {activeTab === "effects" && file && (
+          <div className="max-w-full mx-auto space-y-6 px-2 sm:px-0">
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Sliders className="w-6 h-6 text-primary" />
+                Audio Effects
+              </h2>
+
+              {/* EQ */}
+              <div className="mb-8">
+                <h3 className="font-semibold mb-4">Equalizer</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                  {[
+                    { label: "Low", key: "low" as const },
+                    { label: "Mid", key: "mid" as const },
+                    { label: "High", key: "high" as const },
+                  ].map((band) => (
+                    <div key={band.key} className="space-y-2">
+                      <Label className="text-sm font-medium">{band.label}</Label>
+                      <Slider
+                        value={[effects.eq[band.key]]}
+                        onValueChange={(v) => setEffects({ ...effects, eq: { ...effects.eq, [band.key]: v[0] } })}
+                        min={-12}
+                        max={12}
+                        step={0.5}
+                      />
+                      <div className="text-xs text-center text-muted-foreground font-medium">{effects.eq[band.key].toFixed(1)} dB</div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="card space-y-2">
-                <label className="text-sm font-semibold block">Start Time</label>
-                <input
-                  type="number"
-                  min="0"
-                  max={endTime}
-                  step="0.1"
-                  value={startTime.toFixed(2)}
-                  onChange={(e) => setStartTime(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="input-field"
-                />
+              {/* Other Effects */}
+              <div className="space-y-6">
+                {[
+                  { label: "Compressor", key: "compressor" as const, min: 0, max: 100, unit: "%" },
+                  { label: "Reverb", key: "reverb" as const, min: 0, max: 100, unit: "%" },
+                  { label: "Delay", key: "delay" as const, min: 0, max: 100, unit: "%" },
+                ].map((effect) => (
+                  <div key={effect.key}>
+                    <div className="flex justify-between mb-2">
+                      <Label className="text-sm">{effect.label}</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {effects[effect.key]}
+                        {effect.unit}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[effects[effect.key]]}
+                      onValueChange={(v) => setEffects({ ...effects, [effect.key]: v[0] })}
+                      min={effect.min}
+                      max={effect.max}
+                      step={1}
+                    />
+                  </div>
+                ))}
               </div>
-              <div className="card space-y-2">
-                <label className="text-sm font-semibold block">End Time</label>
-                <input
-                  type="number"
-                  min={startTime}
-                  max={duration}
-                  step="0.1"
-                  value={endTime.toFixed(2)}
-                  onChange={(e) => setEndTime(Math.min(duration, parseFloat(e.target.value) || duration))}
-                  className="input-field"
-                />
-              </div>
-            </div>
 
-            <button 
-              onClick={handleCutAudio} 
-              disabled={isProcessing} 
-              className="btn-primary w-full py-3 sm:py-4 text-base sm:text-lg font-semibold"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader className="w-5 h-5 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5" />
+              {/* Filters */}
+              <div className="mt-8">
+                <h3 className="font-semibold mb-4">Filters</h3>
+                <div className="space-y-6">
+                  {[
+                    { label: "High Pass", key: "highpass" as const, min: 20, max: 2000, unit: "Hz" },
+                    { label: "Low Pass", key: "lowpass" as const, min: 1000, max: 20000, unit: "Hz" },
+                  ].map((filter) => (
+                    <div key={filter.key}>
+                      <div className="flex justify-between mb-2">
+                        <Label className="text-sm">{filter.label}</Label>
+                        <span className="text-sm text-muted-foreground">
+                          {effects[filter.key]} {filter.unit}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[effects[filter.key]]}
+                        onValueChange={(v) => setEffects({ ...effects, [filter.key]: v[0] })}
+                        min={filter.min}
+                        max={filter.max}
+                        step={10}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reset Button */}
+              <Button onClick={() => setEffects(defaultEffects)} variant="outline" className="mt-6 w-full">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset All Effects
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Export Tab */}
+        {activeTab === "export" && file && (
+          <div className="max-w-full mx-auto space-y-6 px-2 sm:px-0">
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Download className="w-6 h-6 text-primary" />
+                Export Audio
+              </h2>
+
+              <div className="space-y-6">
+                <div>
+                  <Label className="mb-2 block">Format</Label>
+                  <Select value={exportFormat} onValueChange={setExportFormat}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="wav">WAV (Lossless)</SelectItem>
+                      <SelectItem value="mp3">MP3</SelectItem>
+                      <SelectItem value="ogg">OGG</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
+                  <div>
+                    <div className="font-medium">Normalize Audio</div>
+                    <div className="text-sm text-muted-foreground">Balance volume levels</div>
+                  </div>
+                  <Switch checked={normalize} onCheckedChange={setNormalize} />
+                </div>
+
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <div className="text-sm mb-2">
+                    <strong>Selection:</strong> {formatTime(startTime)} - {formatTime(endTime)}
+                  </div>
+                  <div className="text-sm">
+                    <strong>Duration:</strong> {formatTime(endTime - startTime)}
+                  </div>
+                </div>
+
+                <Button onClick={exportAudio} className="btn-primary w-full">
+                  <Download className="w-5 h-5 mr-2" />
                   Export Audio
-                </>
-              )}
-            </button>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Projects Tab */}
+        {activeTab === "projects" && (
+          <div className="max-w-2xl mx-auto">
+            <div className="card p-6 text-center">
+              <FolderOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">No Saved Projects</h3>
+              <p className="text-muted-foreground mb-6">Start editing audio to create your first project</p>
+              <Button onClick={() => setActiveTab("home")} variant="outline">
+                Go to Home
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State for Editor/Effects/Export */}
+        {!file && activeTab !== "home" && activeTab !== "projects" && (
+          <div className="max-w-2xl mx-auto">
+            <div className="card p-12 text-center">
+              <Upload className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-xl font-semibold mb-2">No Audio Loaded</h3>
+              <p className="text-muted-foreground mb-6">Upload an audio file to start editing</p>
+              <Button onClick={() => setActiveTab("home")} className="btn-primary">
+                Go to Home
+              </Button>
+            </div>
           </div>
         )}
       </main>
 
-      {/* Floating Bottom Navigation - iOS 27 Style */}
-      <div className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 w-full sm:w-auto">
-        <nav className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 backdrop-blur-xl rounded-full shadow-2xl" style={{ backgroundColor: "hsla(var(--card), 0.9)", borderColor: "hsl(var(--border))", borderWidth: "1px" }}>
-          {[
-            { id: "home", label: "Home", icon: Home },
-            { id: "editor", label: "Editor", icon: Sliders, disabled: !file },
-            { id: "export", label: "Export", icon: Download, disabled: !file }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              disabled={tab.disabled}
-              className="flex flex-col items-center gap-0.5 sm:gap-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full transition-all duration-300"
-              style={activeTab === tab.id ? { 
-                backgroundImage: "linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(168, 85, 247, 0.2))",
-                color: "hsl(var(--primary))"
-              } : tab.disabled ? {
-                color: "hsl(var(--muted-foreground))",
-                opacity: 0.5,
-                cursor: "not-allowed"
-              } : {
-                color: "hsl(var(--muted-foreground))"
-              }}
-            >
-              <tab.icon className="w-5 h-5" />
-              <span className="text-xs font-medium hidden sm:block">{tab.label}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-xl border-t border-border">
+        <div className="container mx-auto px-2 sm:px-4">
+          <div className="flex items-center justify-around h-20">
+            {[
+              { id: "home", icon: HomeIcon, label: "Home" },
+              { id: "editor", icon: Scissors, label: "Editor" },
+              { id: "effects", icon: Sliders, label: "Effects" },
+              { id: "export", icon: Download, label: "Export" },
+              { id: "projects", icon: FolderOpen, label: "Projects" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                disabled={tab.id !== "home" && tab.id !== "projects" && !file}
+                className={cn(
+                  "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[60px]",
+                  activeTab === tab.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
+                  tab.id !== "home" && tab.id !== "projects" && !file && "opacity-40 cursor-not-allowed",
+                )}
+              >
+                <tab.icon className={cn("w-6 h-6 transition-transform", activeTab === tab.id && "scale-110")} />
+                <span className="text-[10px] sm:text-xs font-medium">{tab.label}</span>
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-t-full" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
     </div>
   )
 }

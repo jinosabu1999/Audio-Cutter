@@ -1,5 +1,9 @@
-import SoundStudio from "@/components/sound-studio"
+import AudioCutter from "@/components/audio-cutter"
 
 export default function Home() {
-  return <SoundStudio />
+  return (
+    <main className="min-h-screen bg-background">
+      <AudioCutter />
+    </main>
+  )
 }

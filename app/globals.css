@@ -1,201 +1,151 @@
-/* Material 3 Expressive Audio Editor */
+/* Cache buster: v2.0.1 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* Light Theme - Material 3 Expressive */
   :root {
-    --background: 58 21% 96%;
-    --foreground: 41 29% 13%;
+    /* Modern blue/purple gradient color scheme */
+    --background: 0 0% 100%;
+    --foreground: 224 71% 4%;
     --card: 0 0% 100%;
-    --card-foreground: 41 29% 13%;
-    --primary: 280 85% 52%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 258 90% 60%;
-    --secondary-foreground: 0 0% 100%;
-    --accent: 29 98% 52%;
-    --accent-foreground: 0 0% 0%;
-    --muted: 60 10% 82%;
-    --muted-foreground: 60 5% 48%;
-    --border: 60 14% 90%;
-    --input: 60 9% 95%;
-    --ring: 280 85% 52%;
-    --success: 142 76% 36%;
+    --card-foreground: 224 71% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 71% 4%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262 83% 58%;
+    --radius: 0.75rem;
+    --success: 142 71% 45%;
     --warning: 38 92% 50%;
-    --destructive: 12 100% 55%;
   }
 
-  /* Dark Theme - Material 3 Expressive */
-  html.dark {
-    --background: 280 20% 11%;
-    --foreground: 280 10% 96%;
-    --card: 280 15% 18%;
-    --card-foreground: 280 10% 96%;
-    --primary: 280 85% 63%;
-    --primary-foreground: 280 30% 15%;
-    --secondary: 258 90% 70%;
-    --secondary-foreground: 258 30% 15%;
-    --accent: 29 98% 58%;
-    --accent-foreground: 29 30% 20%;
-    --muted: 280 5% 35%;
-    --muted-foreground: 280 5% 70%;
-    --border: 280 10% 25%;
-    --input: 280 10% 15%;
-    --ring: 280 85% 63%;
-    --success: 142 76% 45%;
-    --warning: 38 92% 55%;
-    --destructive: 12 100% 60%;
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 210 20% 98%;
+    --card: 224 71% 8%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71% 8%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 263 70% 65%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 217 11% 65%;
+    --accent: 217 91% 65%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 263 70% 65%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
   }
 }
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-    color-scheme: light dark;
-  }
-
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
-
   * {
-    border-color: hsl(var(--border));
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer components {
-  /* Material 3 Buttons */
+  /* Simplified button classes with native CSS for dimensions */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 h-12 px-6 font-semibold rounded-full transition-all duration-300;
-    background-color: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    box-shadow: 0 4px 12px hsla(var(--primary), 0.3);
-  }
-
-  .btn-primary:hover {
-    box-shadow: 0 8px 24px hsla(var(--primary), 0.4);
-    transform: translateY(-2px);
-  }
-
-  .btn-primary:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px hsla(var(--primary), 0.2);
+    @apply bg-gradient-to-r from-primary to-accent text-white rounded-xl px-5 py-2.5 font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 flex items-center justify-center gap-2;
+    min-height: 44px;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 h-12 px-6 font-semibold rounded-full transition-all duration-300 border-2;
-    background-color: transparent;
-    color: hsl(var(--primary));
-    border-color: hsl(var(--primary));
+    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl px-5 py-2.5 font-medium transition-all duration-200 active:scale-95 flex items-center justify-center gap-2;
+    min-height: 44px;
   }
 
-  .btn-secondary:hover {
-    background-color: hsla(var(--primary), 0.08);
+  .btn-ghost {
+    @apply bg-transparent hover:bg-secondary text-foreground rounded-lg px-3 py-2 font-medium transition-all duration-200 active:scale-95;
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300;
-    color: hsl(var(--foreground));
+    @apply p-2.5 rounded-xl hover:bg-secondary transition-all duration-200 active:scale-90 flex items-center justify-center;
+    min-width: 44px;
+    min-height: 44px;
   }
 
-  .btn-icon:hover {
-    background-color: hsla(var(--primary), 0.12);
-  }
-
-  /* Material 3 Cards */
   .card {
-    @apply rounded-3xl p-6 transition-all duration-300;
-    background-color: hsl(var(--card));
-    color: hsl(var(--card-foreground));
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    @apply bg-card rounded-2xl border border-border shadow-sm p-4;
   }
 
-  .card:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  .card-elevated {
+    @apply bg-card rounded-xl border border-border shadow-lg;
   }
 
-  /* Material 3 Input */
+  .panel {
+    @apply bg-secondary/50 rounded-lg p-3 border border-border/50;
+  }
+
   .input-field {
-    @apply w-full rounded-xl px-4 py-3 font-medium transition-all duration-200 focus:outline-none;
-    background-color: hsl(var(--input));
-    color: hsl(var(--foreground));
-    border: 2px solid hsl(var(--border));
+    @apply rounded-lg border border-border px-3 py-2;
+    @apply transition-all duration-200;
+    @apply focus:ring-2 focus:ring-primary/30 focus:border-primary;
+    @apply bg-background text-foreground;
   }
 
-  .input-field:hover {
-    border-color: hsl(var(--muted));
-  }
-
-  .input-field:focus {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 4px hsla(var(--primary), 0.15);
-  }
-
-  .input-field::placeholder {
-    color: hsl(var(--muted-foreground));
-  }
-
-  /* Material 3 Badge */
   .badge {
-    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold;
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold;
   }
 
   .badge-primary {
-    background: hsla(var(--primary), 0.2);
-    color: hsl(var(--primary));
-    border: 1.5px solid hsl(var(--primary));
+    @apply bg-primary/10 text-primary border border-primary/20;
   }
 
   .badge-accent {
-    background: hsla(var(--accent), 0.2);
-    color: hsl(var(--accent));
-    border: 1.5px solid hsl(var(--accent));
+    @apply bg-accent/15 text-accent;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideInUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+  50% {
+    transform: translateY(-10px);
   }
 }
 
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.4s ease-out;
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.animate-slideInUp {
-  animation: slideInUp 0.5s ease-out;
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply bg-transparent;
 }
 
-.animate-glow {
-  animation: glow 3s ease-in-out infinite;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full;
 }
