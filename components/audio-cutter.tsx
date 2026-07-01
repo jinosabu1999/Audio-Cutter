@@ -736,30 +736,6 @@ export default function AudioCutter() {
                 </div>
               </div>
             </div>
-
-  
-                </div>
-
-                {/* Speed Control Row */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-medium">Speed:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                      <Button
-                        key={speed}
-                        onClick={() => {
-                          setPlaybackSpeed(speed)
-                          if (audioRef.current) audioRef.current.playbackRate = speed
-                        }}
-                        size="sm"
-                        variant={playbackSpeed === speed ? "default" : "outline"}
-                        className="min-w-[48px] text-xs"
-                      >
-                        {speed}x
-                      </Button>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
 
