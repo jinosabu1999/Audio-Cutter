@@ -1,191 +1,151 @@
-/* v5.0 - Modern Modus Audio with Dual Theme */
+/* Cache buster: v2.0.1 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* Light Theme */
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 10%;
+    /* Vibrant Coral & Warm Palette */
+    --background: 0 0% 99%;
+    --foreground: 15 88% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-    --primary: 217 91% 60%;
+    --card-foreground: 15 88% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 15 88% 8%;
+    --primary: 12 100% 54%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 92%;
-    --secondary-foreground: 0 0% 20%;
-    --accent: 280 85% 56%;
+    --secondary: 35 89% 54%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 15 10% 45%;
+    --accent: 347 90% 52%;
     --accent-foreground: 0 0% 100%;
-    --muted: 0 0% 80%;
-    --muted-foreground: 0 0% 40%;
-    --border: 0 0% 88%;
-    --input: 0 0% 94%;
-    --ring: 217 91% 60%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 96%;
+    --ring: 12 100% 54%;
+    --radius: 0.75rem;
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
-    --destructive: 0 84% 60%;
   }
 
-  /* Dark Theme */
-  html.dark {
-    --background: 0 0% 5.5%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 11%;
-    --card-foreground: 0 0% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --accent: 280 85% 56%;
-    --accent-foreground: 0 0% 100%;
-    --muted: 0 0% 30%;
-    --muted-foreground: 0 0% 60%;
-    --border: 0 0% 18%;
-    --input: 0 0% 12%;
-    --ring: 217 91% 60%;
+  .dark {
+    --background: 15 30% 8%;
+    --foreground: 0 0% 96%;
+    --card: 15 20% 12%;
+    --card-foreground: 0 0% 96%;
+    --popover: 15 20% 12%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 12 100% 62%;
+    --primary-foreground: 15 88% 8%;
+    --secondary: 35 89% 58%;
+    --secondary-foreground: 15 88% 8%;
+    --muted: 15 15% 20%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 347 90% 60%;
+    --accent-foreground: 15 88% 8%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 15 15% 18%;
+    --input: 15 20% 15%;
+    --ring: 12 100% 62%;
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
-    --destructive: 0 84% 60%;
   }
 }
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-    color-scheme: light dark;
-  }
-
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
-
   * {
-    border-color: hsl(var(--border));
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 @layer components {
+  /* Simplified button classes with native CSS for dimensions */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 h-11 px-5 font-semibold rounded-lg transition-all duration-200;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
-    color: hsl(var(--primary-foreground));
-    box-shadow: 0 4px 12px hsla(var(--primary), 0.2);
-  }
-
-  .btn-primary:hover {
-    box-shadow: 0 8px 20px hsla(var(--primary), 0.3);
-    transform: translateY(-2px);
-  }
-
-  .btn-primary:active {
-    transform: translateY(0);
+    @apply bg-gradient-to-r from-primary to-accent text-white rounded-xl px-5 py-2.5 font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 flex items-center justify-center gap-2;
+    min-height: 44px;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 h-11 px-5 font-medium rounded-lg transition-all duration-200 border;
-    background-color: hsl(var(--secondary));
-    color: hsl(var(--secondary-foreground));
-    border-color: hsl(var(--border));
+    @apply bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-xl px-5 py-2.5 font-medium transition-all duration-200 active:scale-95 flex items-center justify-center gap-2;
+    min-height: 44px;
   }
 
-  .btn-secondary:hover {
-    background-color: hsl(var(--secondary) / 0.8);
+  .btn-ghost {
+    @apply bg-transparent hover:bg-secondary text-foreground rounded-lg px-3 py-2 font-medium transition-all duration-200 active:scale-95;
   }
 
   .btn-icon {
-    @apply inline-flex items-center justify-center w-11 h-11 rounded-lg transition-colors duration-200;
-    color: hsl(var(--muted-foreground));
-  }
-
-  .btn-icon:hover {
-    background-color: hsl(var(--secondary));
+    @apply p-2.5 rounded-xl hover:bg-secondary transition-all duration-200 active:scale-90 flex items-center justify-center;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .card {
-    @apply rounded-2xl p-6 shadow-md transition-all duration-300;
-    background-color: hsl(var(--card));
-    color: hsl(var(--card-foreground));
-    border: 1px solid hsl(var(--border));
+    @apply bg-card rounded-2xl border border-border shadow-sm p-4;
+  }
+
+  .card-elevated {
+    @apply bg-card rounded-xl border border-border shadow-lg;
+  }
+
+  .panel {
+    @apply bg-secondary/50 rounded-lg p-3 border border-border/50;
   }
 
   .input-field {
-    @apply w-full rounded-lg px-4 py-3 font-medium transition-all duration-200 focus:outline-none;
-    background-color: hsl(var(--input));
-    color: hsl(var(--foreground));
-    border: 1.5px solid hsl(var(--border));
-  }
-
-  .input-field:hover {
-    border-color: hsl(var(--muted));
-  }
-
-  .input-field:focus {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 3px hsla(var(--primary), 0.1);
-  }
-
-  .input-field::placeholder {
-    color: hsl(var(--muted-foreground));
+    @apply rounded-lg border border-border px-3 py-2;
+    @apply transition-all duration-200;
+    @apply focus:ring-2 focus:ring-primary/30 focus:border-primary;
+    @apply bg-background text-foreground;
   }
 
   .badge {
-    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold;
   }
 
   .badge-primary {
-    background: hsla(var(--primary), 0.15);
-    color: hsl(var(--primary));
-    border: 1px solid hsla(var(--primary), 0.3);
+    @apply bg-primary/10 text-primary border border-primary/20;
   }
 
   .badge-accent {
-    background: hsla(var(--accent), 0.15);
-    color: hsl(var(--accent));
-    border: 1px solid hsla(var(--accent), 0.3);
+    @apply bg-accent/15 text-accent;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideInUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+  50% {
+    transform: translateY(-10px);
   }
 }
 
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.5); }
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.4s ease-out;
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.animate-slideInUp {
-  animation: slideInUp 0.5s ease-out;
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply bg-transparent;
 }
 
-.animate-glow {
-  animation: glow 3s ease-in-out infinite;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full;
 }
