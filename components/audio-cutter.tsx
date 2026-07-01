@@ -14,8 +14,6 @@ import {
   Pause,
   Scissors,
   RotateCcw,
-  VolumeX,
-  Volume2,
   X,
   Download,
   BookmarkPlus,
@@ -491,13 +489,22 @@ export default function AudioCutter() {
               {file && <p className="text-xs text-muted-foreground hidden sm:block">{file.name}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setShowHelp(true)} className="btn-icon">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button onClick={() => setShowHelp(true)} className="btn-icon hover:bg-primary/10 transition-all duration-300">
               <HelpCircle className="w-5 h-5" />
             </Button>
-            <Button onClick={toggleTheme} className="btn-icon">
-              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </Button>
+            <button
+              onClick={toggleTheme}
+              className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 hover:from-primary/30 hover:to-secondary/30 transition-all duration-300 flex items-center justify-center group"
+              title="Toggle theme"
+            >
+              <div className="absolute inset-0 rounded-2xl bg-primary/0 group-hover:bg-primary/10 transition-all duration-300" />
+              {theme === "dark" ? (
+                <Sun className="w-5 h-5 text-primary drop-shadow-lg group-hover:scale-110 transition-transform duration-300" />
+              ) : (
+                <Moon className="w-5 h-5 text-secondary drop-shadow-lg group-hover:scale-110 transition-transform duration-300" />
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -616,27 +623,30 @@ export default function AudioCutter() {
                   }}
                 />
 
-                {/* Waveform Bars */}
-                <div className="absolute inset-0 flex items-center gap-1 px-4">
+                {/* Waveform Bars - Interactive Modern Design */}
+                <div className="absolute inset-0 flex items-center justify-center gap-0.5 px-4">
                   {waveformData.map((value, i) => {
                     const time = (i / waveformData.length) * duration
                     const isInSelection = time >= startTime && time <= endTime
                     const isPassed = time <= currentTime
+                    const barHeight = Math.max(6, value * 95)
 
                     return (
                       <div
                         key={i}
                         className={cn(
-                          "flex-1 rounded-full transition-all duration-75",
+                          "flex-1 rounded-full transition-all duration-100 hover:opacity-80 cursor-pointer",
                           isInSelection
                             ? isPassed
-                              ? "bg-primary"
-                              : "bg-primary/50"
+                              ? "bg-gradient-to-b from-primary to-secondary shadow-lg shadow-primary/30"
+                              : "bg-gradient-to-b from-primary/60 to-secondary/60"
                             : isPassed
-                              ? "bg-muted-foreground/50"
-                              : "bg-muted-foreground/20",
+                              ? "bg-gradient-to-b from-muted-foreground/60 to-muted-foreground/30"
+                              : "bg-gradient-to-b from-muted/70 to-muted/40 hover:from-muted hover:to-muted/60",
                         )}
-                        style={{ height: `${Math.max(10, value * 90)}%` }}
+                        style={{ height: `${barHeight}%` }}
+                        onClick={() => seekTo(time)}
+                        title={`${formatTime(time)}`}
                       />
                     )
                   })}
@@ -644,10 +654,10 @@ export default function AudioCutter() {
 
                 {/* Playhead */}
                 <div
-                  className="absolute top-0 bottom-0 w-1 bg-accent z-10"
+                  className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-accent to-secondary z-10 shadow-lg"
                   style={{ left: `${(currentTime / duration) * 100}%` }}
                 >
-                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-accent rounded-full" />
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4 bg-accent rounded-full shadow-lg shadow-accent/50 animate-pulse" />
                 </div>
 
                 {/* Bookmarks */}
@@ -681,44 +691,53 @@ export default function AudioCutter() {
             <div className="card p-4 sm:p-6">
               <div className="space-y-4">
                 {/* Main Controls Row */}
-                <div className="flex flex-wrap items-center justify-start sm:justify-between gap-2 sm:gap-4">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
                   {/* Transport Controls */}
-                  <div className="flex items-center gap-2">
-                    <Button onClick={skipBackward} className="btn-icon">
-                      <SkipBack className="w-5 h-5" />
-                    </Button>
-                    <Button onClick={togglePlayPause} className="btn-primary">
-                      {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-                    </Button>
-                    <Button onClick={skipForward} className="btn-icon">
-                      <SkipForward className="w-5 h-5" />
-                    </Button>
-                    <Button
-                      onClick={() => setIsLooping(!isLooping)}
-                      className={cn("btn-icon", isLooping && "bg-primary/20")}
-                    >
-                      <Repeat className="w-5 h-5" />
-                    </Button>
-                  </div>
+                  <Button onClick={skipBackward} className="btn-icon">
+                    <SkipBack className="w-5 h-5" />
+                  </Button>
+                  <Button onClick={togglePlayPause} className="btn-primary px-6">
+                    {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                    <span className="ml-2 text-sm font-semibold">{isPlaying ? "Pause" : "Play"}</span>
+                  </Button>
+                  <Button onClick={skipForward} className="btn-icon">
+                    <SkipForward className="w-5 h-5" />
+                  </Button>
+                  <div className="w-px h-8 bg-border mx-2"></div>
+                  <Button
+                    onClick={() => setIsLooping(!isLooping)}
+                    className={cn("btn-icon transition-all duration-200", isLooping && "bg-primary/20 text-primary")}
+                    title="Toggle loop"
+                  >
+                    <Repeat className="w-5 h-5" />
+                  </Button>
+                </div>
 
-                  {/* Volume Control */}
-                  <div className="flex items-center gap-2">
-                    <Button onClick={() => setIsMuted(!isMuted)} className="btn-icon">
-                      {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                    </Button>
-                    <Slider
-                      value={[isMuted ? 0 : volume]}
-                      onValueChange={(v) => {
-                        setVolume(v[0])
-                        setIsMuted(false)
-                        if (audioRef.current) audioRef.current.volume = v[0]
-                      }}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      className="w-20"
-                    />
+                {/* Speed Control Row */}
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <span className="text-sm font-semibold text-muted-foreground">Playback Speed:</span>
+                  <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                      <Button
+                        key={speed}
+                        onClick={() => {
+                          setPlaybackSpeed(speed)
+                          if (audioRef.current) audioRef.current.playbackRate = speed
+                        }}
+                        className={cn(
+                          "btn-secondary min-w-[52px] text-xs font-semibold transition-all duration-200",
+                          playbackSpeed === speed && "bg-primary text-white shadow-lg"
+                        )}
+                      >
+                        {speed}x
+                      </Button>
+                    ))}
                   </div>
+                </div>
+              </div>
+            </div>
+
+  
                 </div>
 
                 {/* Speed Control Row */}
@@ -1046,7 +1065,7 @@ export default function AudioCutter() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-xl border-t border-border">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-card via-card/98 to-card/90 backdrop-blur-2xl border-t-2 border-primary/20 shadow-2xl shadow-background/20">
         <div className="container mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-around h-20">
             {[
@@ -1061,15 +1080,17 @@ export default function AudioCutter() {
                 onClick={() => setActiveTab(tab.id)}
                 disabled={tab.id !== "home" && tab.id !== "projects" && !file}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200 min-w-[60px]",
-                  activeTab === tab.id ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
-                  tab.id !== "home" && tab.id !== "projects" && !file && "opacity-40 cursor-not-allowed",
+                  "relative flex flex-col items-center gap-1.5 py-2 px-4 sm:px-5 rounded-2xl transition-all duration-300 min-w-[64px] group",
+                  activeTab === tab.id 
+                    ? "bg-gradient-to-b from-primary to-secondary text-white shadow-lg shadow-primary/40" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-primary/10",
+                  tab.id !== "home" && tab.id !== "projects" && !file && "opacity-50 cursor-not-allowed",
                 )}
               >
-                <tab.icon className={cn("w-6 h-6 transition-transform", activeTab === tab.id && "scale-110")} />
-                <span className="text-[10px] sm:text-xs font-medium">{tab.label}</span>
+                <tab.icon className={cn("w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300", activeTab === tab.id && "scale-125 drop-shadow-lg")} />
+                <span className="text-[10px] sm:text-xs font-bold tracking-wide uppercase">{tab.label}</span>
                 {activeTab === tab.id && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-t-full" />
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-2 h-2 bg-primary rounded-full shadow-lg shadow-primary/50 animate-pulse" />
                 )}
               </button>
             ))}
